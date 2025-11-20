@@ -4,7 +4,7 @@ import { classifyIssue, autoFillIssueForm } from './aiClassifiers';
 import { summarizeVisit, autoFillVisitForm } from './aiSummaries';
 import { getSolutionSuggestion, getOperationalImprovement, getPriorityScore, autoFillTask } from './aiSuggestions';
 import { sendMessage } from './aiChatEngine';
-import { AIChatMessage } from '../../types';
+import { AIChatMessage, Task, Issue, VisitNote } from '../../types';
 
 // Generic Hook Factory
 function useAI<T, A extends any[]>(aiFunction: (...args: A) => Promise<T>) {
@@ -49,13 +49,16 @@ export const useAIChat = () => {
   const [history, setHistory] = useState<AIChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const send = async (msg: string) => {
+  const send = async (
+    msg: string, 
+    contextData?: { tasks: Task[], issues: Issue[], visits: VisitNote[] }
+  ) => {
     setLoading(true);
     const newHistory = [...history, { role: 'user' as const, content: msg }];
     setHistory(newHistory);
     
     try {
-      const res = await sendMessage(newHistory, msg);
+      const res = await sendMessage(newHistory, msg, contextData);
       setHistory(prev => [...prev, { role: 'assistant', content: res.reply }]);
       return res;
     } catch (err) {

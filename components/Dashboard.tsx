@@ -261,7 +261,13 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, issues, visits }) => {
         </div>
       )}
       
-      <AIChatWindow isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <AIChatWindow 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        tasks={tasks}
+        issues={issues}
+        visits={visits}
+      />
     </div>
   );
 };
