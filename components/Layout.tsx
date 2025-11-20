@@ -23,7 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isCo
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row text-gray-800">
       {/* Mobile Header */}
       <div className="md:hidden bg-anteraja-purple text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
-        <h1 className="font-bold text-lg">Ops Hub</h1>
+        <h1 className="font-bold text-lg">Business Ecosystem</h1>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           <Menu />
         </button>
@@ -36,8 +36,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isCo
         md:translate-x-0 flex flex-col
       `}>
         <div className="p-6 border-b border-gray-100 hidden md:block">
-          <h1 className="text-2xl font-bold text-anteraja-purple">Ops Hub</h1>
-          <p className="text-xs text-gray-500 mt-1">Business Success Specialist</p>
+          <h1 className="text-xl font-bold text-anteraja-purple">Business Ecosystem</h1>
+          <p className="text-xs text-gray-500 mt-1">Success Specialist</p>
         </div>
 
         <div className="flex-1 py-4">

@@ -1,3 +1,4 @@
+
 export enum Priority {
   P1 = 'PRIORITY_1', // High Impact
   P2 = 'PRIORITY_2', // Deadline Driven
@@ -32,6 +33,8 @@ export enum IssueStatus {
   DONE = 'DONE',
 }
 
+export type VisitStatus = 'PLANNED' | 'DONE' | 'RESCHEDULED';
+
 export interface Task {
   id: string;
   title: string;
@@ -47,7 +50,8 @@ export interface Task {
 
 export interface Issue {
   id: string;
-  awbOrPartnerId: string;
+  awb: string;
+  partnerName: string; // New Field
   issueType: string;
   opcode: string;
   sopRelated: string;
@@ -61,12 +65,18 @@ export interface Issue {
 export interface VisitNote {
   id: string;
   partnerName: string;
-  nia: string;
-  visitDate: string;
+  // Removed NIA
+  googleMapsLink: string; // New
+  coordinates: string; // New
+  visitDatePlan: string; // New
+  visitDateActual: string; // New
+  ordersLastMonth: number; // New
+  ordersDailyAvg: number; // New
   findings: string;
   operationalIssues: string;
   suggestions: string;
   summary?: string; // AI Generated
+  status: VisitStatus; // New Field
 }
 
 export interface DashboardStats {

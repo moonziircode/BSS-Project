@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { Issue, IssueStatus, Division } from '../types';
-import { Plus, AlertTriangle, Search, Filter, Clock } from 'lucide-react';
+import { Plus, AlertTriangle, Search, Filter, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { refineChronology } from '../services/geminiService';
 
 interface IssueTrackerProps {
   issues: Issue[];
@@ -11,10 +13,12 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [isRefining, setIsRefining] = useState(false);
   
   // Form State
   const [formState, setFormState] = useState<Partial<Issue>>({
-    awbOrPartnerId: '',
+    awb: '',
+    partnerName: '',
     issueType: '',
     opcode: '',
     sopRelated: '',
@@ -22,6 +26,14 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     division: Division.OPS,
     status: IssueStatus.OPEN
   });
+
+  const handleRefineChronology = async () => {
+    if (!formState.chronology) return;
+    setIsRefining(true);
+    const refined = await refineChronology(formState.chronology);
+    setFormState(prev => ({ ...prev, chronology: refined }));
+    setIsRefining(false);
+  };
 
   const getSlaStatus = (createdAt: string, status: IssueStatus) => {
     if (status === IssueStatus.DONE) return { breached: false, label: 'Selesai' };
@@ -35,18 +47,20 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
   };
 
   const filteredIssues = issues.filter(issue => {
-    const matchSearch = issue.awbOrPartnerId.toLowerCase().includes(search.toLowerCase()) || 
+    const matchSearch = issue.awb.toLowerCase().includes(search.toLowerCase()) || 
+                        issue.partnerName.toLowerCase().includes(search.toLowerCase()) ||
                         issue.issueType.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === 'ALL' || issue.status === filterStatus;
     return matchSearch && matchStatus;
   });
 
   const handleCreate = () => {
-    if (!formState.awbOrPartnerId || !formState.issueType) return;
+    if (!formState.awb || !formState.issueType) return;
     
     const newIssue: Issue = {
       id: Math.random().toString(36).substring(7),
-      awbOrPartnerId: formState.awbOrPartnerId!,
+      awb: formState.awb!,
+      partnerName: formState.partnerName || '',
       issueType: formState.issueType!,
       opcode: formState.opcode || '',
       sopRelated: formState.sopRelated || '',
@@ -58,7 +72,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     
     onSaveIssue(newIssue);
     setIsModalOpen(false);
-    setFormState({ awbOrPartnerId: '', issueType: '', chronology: '', division: Division.OPS });
+    setFormState({ awb: '', partnerName: '', issueType: '', chronology: '', division: Division.OPS });
   };
 
   return (
@@ -82,7 +96,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Cari AWB, Mitra ID, atau Issue..." 
+            placeholder="Cari AWB, Nama Pengusaha, atau Issue..." 
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-anteraja-pink"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -106,14 +120,14 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
         </div>
       </div>
 
-      {/* Table View (Desktop) & Card View (Mobile) */}
+      {/* Table View */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
               <tr>
                 <th className="px-6 py-3 font-semibold">Status / SLA</th>
-                <th className="px-6 py-3 font-semibold">AWB / Mitra ID</th>
+                <th className="px-6 py-3 font-semibold">AWB / Pengusaha</th>
                 <th className="px-6 py-3 font-semibold">Issue Info</th>
                 <th className="px-6 py-3 font-semibold">Divisi</th>
                 <th className="px-6 py-3 font-semibold">Action</th>
@@ -138,12 +152,13 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                       </div>
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900">
-                      {issue.awbOrPartnerId}
+                      <div className="text-sm">{issue.awb}</div>
+                      <div className="text-xs font-bold text-anteraja-purple">{issue.partnerName}</div>
                       {issue.opcode && <div className="text-xs text-gray-500 font-normal">Op: {issue.opcode}</div>}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-800">{issue.issueType}</div>
-                      <div className="text-xs text-gray-500 truncate max-w-[200px]">{issue.chronology}</div>
+                      <div className="text-xs text-gray-500 truncate max-w-[250px] whitespace-pre-line">{issue.chronology}</div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {issue.division}
@@ -184,11 +199,12 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">AWB / ID Mitra</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nomor AWB</label>
                     <input 
                       className="w-full border border-gray-300 rounded p-2 text-sm"
-                      value={formState.awbOrPartnerId}
-                      onChange={e => setFormState({...formState, awbOrPartnerId: e.target.value})}
+                      value={formState.awb}
+                      onChange={e => setFormState({...formState, awb: e.target.value})}
+                      placeholder="Contoh: 1000283..."
                     />
                  </div>
                  <div>
@@ -202,6 +218,16 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Pengusaha / Toko</label>
+                <input 
+                  className="w-full border border-gray-300 rounded p-2 text-sm"
+                  value={formState.partnerName}
+                  onChange={e => setFormState({...formState, partnerName: e.target.value})}
+                  placeholder="Nama Toko / Pengusaha"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jenis Issue</label>
                 <input 
                   className="w-full border border-gray-300 rounded p-2 text-sm"
@@ -212,11 +238,22 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kronologi Singkat</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-gray-500 uppercase">Kronologi Singkat</label>
+                  <button 
+                    onClick={handleRefineChronology}
+                    disabled={isRefining || !formState.chronology}
+                    className="text-[10px] flex items-center gap-1 text-purple-600 hover:bg-purple-50 px-2 py-0.5 rounded border border-purple-200"
+                  >
+                    {isRefining ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>}
+                    AI Refine
+                  </button>
+                </div>
                 <textarea 
-                  className="w-full border border-gray-300 rounded p-2 text-sm h-20"
+                  className="w-full border border-gray-300 rounded p-2 text-sm h-24"
                   value={formState.chronology}
                   onChange={e => setFormState({...formState, chronology: e.target.value})}
+                  placeholder="Ceritakan masalahnya..."
                 />
               </div>
 

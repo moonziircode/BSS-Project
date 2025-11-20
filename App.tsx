@@ -171,7 +171,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'dashboard' && <Dashboard tasks={tasks} issues={issues} />}
+      {activeTab === 'dashboard' && <Dashboard tasks={tasks} issues={issues} visits={visits} />}
       {activeTab === 'tasks' && <TaskManager tasks={tasks} onSaveTask={handleSaveTask} onDeleteTask={handleDeleteTask} />}
       {activeTab === 'issues' && <IssueTracker issues={issues} onSaveIssue={handleSaveIssue} />}
       {activeTab === 'visits' && <VisitNotes visits={visits} onSaveVisit={handleSaveVisit} />}

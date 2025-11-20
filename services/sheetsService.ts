@@ -1,4 +1,5 @@
-import { Task, Issue, VisitNote, TaskCategory, Priority, TaskStatus, Division, IssueStatus } from '../types';
+
+import { Task, Issue, VisitNote, TaskCategory, Priority, TaskStatus, Division, IssueStatus, VisitStatus } from '../types';
 
 // Constants provided by user
 export const DEFAULT_SPREADSHEET_ID = '1IaQoRLmQRGt_I4SK8Tlyuwt3FLE4Xw9JrYExxOkA4UM';
@@ -114,9 +115,11 @@ export class SheetsService {
           spreadsheetId: this.spreadsheetId,
           resource: { requests },
         });
-        // Add headers for newly created sheets
-        await this.addHeaders();
       }
+      
+      // Always attempt to update headers to ensure new schema is applied
+      await this.addHeaders();
+
     } catch (error) {
       console.error('Error ensuring sheets exist:', error);
       throw error;
@@ -124,10 +127,12 @@ export class SheetsService {
   }
 
   private async addHeaders() {
+    // Updated Headers to match new fields
     const values = [
       { range: `${SHEETS.TASKS}!A1:J1`, values: [['ID', 'Title', 'Description', 'CreatedAt', 'Deadline', 'Category', 'Priority', 'Status', 'Division', 'Notes']] },
-      { range: `${SHEETS.ISSUES}!A1:J1`, values: [['ID', 'AWB/Partner', 'IssueType', 'Opcode', 'SOP', 'Chronology', 'Division', 'Status', 'CreatedAt', 'Screenshot']] },
-      { range: `${SHEETS.VISITS}!A1:H1`, values: [['ID', 'PartnerName', 'NIA', 'VisitDate', 'Findings', 'OpIssues', 'Suggestions', 'Summary']] },
+      { range: `${SHEETS.ISSUES}!A1:K1`, values: [['ID', 'AWB', 'PartnerName', 'IssueType', 'Opcode', 'SOP', 'Chronology', 'Division', 'Status', 'CreatedAt', 'Screenshot']] },
+      // Added Status Column
+      { range: `${SHEETS.VISITS}!A1:M1`, values: [['ID', 'PartnerName', 'MapsLink', 'Coordinates', 'PlanDate', 'ActualDate', 'OrdersTotal', 'OrdersAvg', 'Findings', 'OpIssues', 'Suggestions', 'Summary', 'Status']] },
     ];
 
     for (const v of values) {
@@ -139,7 +144,7 @@ export class SheetsService {
             resource: { values: v.values }
          });
        } catch (e) {
-         // Ignore if header update fails (e.g. permissions or already exists)
+         // Ignore if header update fails
          console.warn("Header update warning", e);
        }
     }
@@ -174,7 +179,6 @@ export class SheetsService {
   }
 
   public async saveTask(task: Task): Promise<void> {
-    // Check if task exists to update, or append
     const tasks = await this.getTasks();
     const index = tasks.findIndex(t => t.id === task.id);
     
@@ -184,7 +188,6 @@ export class SheetsService {
     ];
 
     if (index >= 0) {
-      // Update (Row index + 2 because A1 is header and array is 0-indexed)
       const range = `${SHEETS.TASKS}!A${index + 2}:J${index + 2}`;
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
@@ -193,7 +196,6 @@ export class SheetsService {
         resource: { values: [row] },
       });
     } else {
-      // Append
       await window.gapi.client.sheets.spreadsheets.values.append({
         spreadsheetId: this.spreadsheetId,
         range: `${SHEETS.TASKS}!A1`,
@@ -205,10 +207,6 @@ export class SheetsService {
 
   public async deleteTask(id: string): Promise<void> {
     const tasks = await this.getTasks();
-    const index = tasks.findIndex(t => t.id === id);
-    if (index === -1) return;
-
-    // Rewrite the sheet excluding the deleted item
     const newTasks = tasks.filter(t => t.id !== id);
     await this.rewriteSheet(SHEETS.TASKS, newTasks.map(t => [
        t.id, t.title, t.description, t.createdAt, t.deadline||'', t.category, t.priority, t.status, t.division, t.notes
@@ -221,20 +219,21 @@ export class SheetsService {
     try {
       const response = await window.gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
-        range: `${SHEETS.ISSUES}!A2:J`,
+        range: `${SHEETS.ISSUES}!A2:K`,
       });
       const rows = response.result.values || [];
       return rows.map((row: any[]) => ({
         id: row[0],
-        awbOrPartnerId: row[1],
-        issueType: row[2],
-        opcode: row[3],
-        sopRelated: row[4],
-        chronology: row[5],
-        division: row[6] as Division,
-        status: row[7] as IssueStatus,
-        createdAt: row[8],
-        screenshotUrl: row[9]
+        awb: row[1],
+        partnerName: row[2] || '', // New mapped field
+        issueType: row[3],
+        opcode: row[4],
+        sopRelated: row[5],
+        chronology: row[6],
+        division: row[7] as Division,
+        status: row[8] as IssueStatus,
+        createdAt: row[9],
+        screenshotUrl: row[10]
       }));
     } catch (e) {
       console.error('Error fetching issues', e);
@@ -247,12 +246,12 @@ export class SheetsService {
     const index = issues.findIndex(i => i.id === issue.id);
     
     const row = [
-      issue.id, issue.awbOrPartnerId, issue.issueType, issue.opcode, issue.sopRelated,
+      issue.id, issue.awb, issue.partnerName, issue.issueType, issue.opcode, issue.sopRelated,
       issue.chronology, issue.division, issue.status, issue.createdAt, issue.screenshotUrl || ''
     ];
 
     if (index >= 0) {
-      const range = `${SHEETS.ISSUES}!A${index + 2}:J${index + 2}`;
+      const range = `${SHEETS.ISSUES}!A${index + 2}:K${index + 2}`;
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
         range: range,
@@ -275,18 +274,23 @@ export class SheetsService {
     try {
       const response = await window.gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
-        range: `${SHEETS.VISITS}!A2:H`,
+        range: `${SHEETS.VISITS}!A2:M`, // Extended Range
       });
       const rows = response.result.values || [];
       return rows.map((row: any[]) => ({
         id: row[0],
         partnerName: row[1],
-        nia: row[2],
-        visitDate: row[3],
-        findings: row[4],
-        operationalIssues: row[5],
-        suggestions: row[6],
-        summary: row[7]
+        googleMapsLink: row[2],
+        coordinates: row[3],
+        visitDatePlan: row[4],
+        visitDateActual: row[5],
+        ordersLastMonth: Number(row[6] || 0),
+        ordersDailyAvg: Number(row[7] || 0),
+        findings: row[8],
+        operationalIssues: row[9],
+        suggestions: row[10],
+        summary: row[11],
+        status: (row[12] || 'PLANNED') as VisitStatus
       }));
     } catch (e) {
       console.error('Error fetching visits', e);
@@ -299,12 +303,14 @@ export class SheetsService {
     const index = visits.findIndex(v => v.id === visit.id);
     
     const row = [
-      visit.id, visit.partnerName, visit.nia, visit.visitDate, visit.findings,
-      visit.operationalIssues, visit.suggestions, visit.summary || ''
+      visit.id, visit.partnerName, visit.googleMapsLink, visit.coordinates, 
+      visit.visitDatePlan, visit.visitDateActual, visit.ordersLastMonth, visit.ordersDailyAvg,
+      visit.findings, visit.operationalIssues, visit.suggestions, visit.summary || '',
+      visit.status || 'PLANNED'
     ];
 
     if (index >= 0) {
-      const range = `${SHEETS.VISITS}!A${index + 2}:H${index + 2}`;
+      const range = `${SHEETS.VISITS}!A${index + 2}:M${index + 2}`;
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
         range: range,
@@ -321,16 +327,14 @@ export class SheetsService {
     }
   }
 
-  // Helper to rewrite sheet (used for delete)
+  // Helper to rewrite sheet
   private async rewriteSheet(sheetName: string, rows: any[][]) {
-    // Clear a larger range to be safe
     await window.gapi.client.sheets.spreadsheets.values.clear({
       spreadsheetId: this.spreadsheetId,
       range: `${sheetName}!A2:Z5000`,
     });
     
     if (rows.length > 0) {
-      // Write new
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
         range: `${sheetName}!A2`,
