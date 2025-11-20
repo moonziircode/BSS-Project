@@ -10,7 +10,12 @@ import {
   getIssues, saveIssue as saveLocalIssue,
   getVisits, saveVisit as saveLocalVisit
 } from './services/storageService';
-import { sheetsService, DEFAULT_SPREADSHEET_ID } from './services/sheetsService';
+import { 
+  sheetsService, 
+  DEFAULT_SPREADSHEET_ID, 
+  DEFAULT_CLIENT_ID, 
+  DEFAULT_API_KEY 
+} from './services/sheetsService';
 import { Task, Issue, VisitNote } from './types';
 import { Database, X, Save, Loader2, ExternalLink } from 'lucide-react';
 
@@ -28,10 +33,10 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   
-  // Sheets Config Form
+  // Sheets Config Form - Initialized with User Provided Defaults
   const [config, setConfig] = useState({
-    clientId: '',
-    apiKey: process.env.API_KEY || '', // Prefill if available
+    clientId: DEFAULT_CLIENT_ID,
+    apiKey: DEFAULT_API_KEY,
     spreadsheetId: DEFAULT_SPREADSHEET_ID
   });
 
@@ -78,7 +83,7 @@ const App: React.FC = () => {
       sheetsService.requestAccessToken();
     } catch (error) {
       console.error("Connection Failed", error);
-      alert("Koneksi Gagal. Cek console untuk detail.");
+      alert("Koneksi Gagal. Pastikan Origin URL (domain app ini) sudah didaftarkan di Google Cloud Console dan Pop-up tidak diblokir.");
     } finally {
       setIsLoading(false);
     }
@@ -188,7 +193,7 @@ const App: React.FC = () => {
 
             <div className="space-y-4">
               <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800 leading-relaxed">
-                Untuk menghubungkan ke Google Sheets, Anda memerlukan <strong>Google Cloud Client ID</strong> dan <strong>API Key</strong> yang valid dengan scope Sheets API enabled.
+                Kredensial telah diisi otomatis sesuai permintaan Anda. Klik <strong>Connect & Sync</strong> untuk memulai otorisasi dengan akun Google Anteraja Anda.
               </div>
 
               <div>
@@ -211,7 +216,7 @@ const App: React.FC = () => {
                 <input 
                   type="text"
                   placeholder="xxx.apps.googleusercontent.com"
-                  className="w-full border border-gray-300 rounded p-2 text-sm"
+                  className="w-full border border-gray-300 rounded p-2 text-sm font-mono bg-gray-50 text-gray-600"
                   value={config.clientId}
                   onChange={e => setConfig({...config, clientId: e.target.value})}
                 />
@@ -222,7 +227,7 @@ const App: React.FC = () => {
                 <input 
                   type="text"
                   placeholder="AIza..."
-                  className="w-full border border-gray-300 rounded p-2 text-sm"
+                  className="w-full border border-gray-300 rounded p-2 text-sm font-mono bg-gray-50 text-gray-600"
                   value={config.apiKey}
                   onChange={e => setConfig({...config, apiKey: e.target.value})}
                 />
@@ -238,7 +243,7 @@ const App: React.FC = () => {
                   Connect & Sync
                 </button>
                 <p className="text-[10px] text-center text-gray-400 mt-2">
-                   Akan meminta login Google Account setelah klik. Pastikan akun memiliki akses edit ke sheet.
+                   Akan membuka pop-up Google Sign In.
                 </p>
               </div>
             </div>

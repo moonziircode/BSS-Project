@@ -1,7 +1,10 @@
 import { Task, Issue, VisitNote, TaskCategory, Priority, TaskStatus, Division, IssueStatus } from '../types';
 
-// Constants
+// Constants provided by user
 export const DEFAULT_SPREADSHEET_ID = '1IaQoRLmQRGt_I4SK8Tlyuwt3FLE4Xw9JrYExxOkA4UM';
+export const DEFAULT_CLIENT_ID = '969131868502-3edmgo35ehebgo8p52ed0kb7p0sghujv.apps.googleusercontent.com';
+export const DEFAULT_API_KEY = 'AIzaSyDT5vM-7nIoVt5MXMtOIgojK24bxkP94hI';
+
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 
@@ -35,7 +38,14 @@ export class SheetsService {
 
   // Initialize GAPI Client
   public async initClient(apiKey: string): Promise<void> {
+    if (this.isInitialized) return;
+    
     return new Promise((resolve, reject) => {
+      if (!window.gapi) {
+        reject(new Error("Google API Script not loaded"));
+        return;
+      }
+      
       window.gapi.load('client', async () => {
         try {
           await window.gapi.client.init({
@@ -45,6 +55,7 @@ export class SheetsService {
           this.isInitialized = true;
           resolve();
         } catch (error) {
+          console.error("GAPI Init Error", error);
           reject(error);
         }
       });
@@ -53,6 +64,8 @@ export class SheetsService {
 
   // Initialize GIS Token Client
   public initTokenClient(clientId: string, onTokenReceived: () => void): void {
+    if (!window.google) return;
+
     this.tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPES,
@@ -101,7 +114,7 @@ export class SheetsService {
           spreadsheetId: this.spreadsheetId,
           resource: { requests },
         });
-        // Add headers
+        // Add headers for newly created sheets
         await this.addHeaders();
       }
     } catch (error) {
@@ -118,12 +131,17 @@ export class SheetsService {
     ];
 
     for (const v of values) {
-       await window.gapi.client.sheets.spreadsheets.values.update({
-          spreadsheetId: this.spreadsheetId,
-          range: v.range,
-          valueInputOption: 'RAW',
-          resource: { values: v.values }
-       });
+       try {
+         await window.gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: this.spreadsheetId,
+            range: v.range,
+            valueInputOption: 'RAW',
+            resource: { values: v.values }
+         });
+       } catch (e) {
+         // Ignore if header update fails (e.g. permissions or already exists)
+         console.warn("Header update warning", e);
+       }
     }
   }
 
@@ -186,15 +204,11 @@ export class SheetsService {
   }
 
   public async deleteTask(id: string): Promise<void> {
-    // Deleting rows is complex in Sheets API without breaking order.
-    // For simplicity in this app, we will mark it as CLOSED or handle logic in UI.
-    // But strictly, to delete:
     const tasks = await this.getTasks();
     const index = tasks.findIndex(t => t.id === id);
     if (index === -1) return;
 
-    // We'll just clear the content of the row to avoid shifting complexity for now
-    // or better, we rewrite the whole sheet (inefficient but safe for small data)
+    // Rewrite the sheet excluding the deleted item
     const newTasks = tasks.filter(t => t.id !== id);
     await this.rewriteSheet(SHEETS.TASKS, newTasks.map(t => [
        t.id, t.title, t.description, t.createdAt, t.deadline||'', t.category, t.priority, t.status, t.division, t.notes
@@ -309,10 +323,10 @@ export class SheetsService {
 
   // Helper to rewrite sheet (used for delete)
   private async rewriteSheet(sheetName: string, rows: any[][]) {
-    // Clear
+    // Clear a larger range to be safe
     await window.gapi.client.sheets.spreadsheets.values.clear({
       spreadsheetId: this.spreadsheetId,
-      range: `${sheetName}!A2:Z1000`,
+      range: `${sheetName}!A2:Z5000`,
     });
     
     if (rows.length > 0) {
