@@ -84,3 +84,29 @@ export interface DashboardStats {
   issuesCritical: number; // SLA Breach
   pendingVisits: number;
 }
+
+// --- AI Types ---
+
+export interface AIPriorityResult {
+  score: number;
+  priorityLevel: Priority;
+  reasoning: string;
+}
+
+export interface AIIssueClassification {
+  opcode: string;
+  sop: string;
+  division: Division;
+  confidence: number;
+  reasoning: string;
+}
+
+export interface AIChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface AIChatResponse {
+  reply: string;
+  suggestedActions: string[];
+}

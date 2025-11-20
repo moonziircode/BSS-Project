@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { Issue, IssueStatus, Division } from '../types';
-import { Plus, AlertTriangle, Search, Filter, Clock, Sparkles, Loader2 } from 'lucide-react';
-import { refineChronology } from '../services/geminiService';
+import { Plus, AlertTriangle, Search, Filter, Clock, BrainCircuit, Lightbulb } from 'lucide-react';
+import { useAIClassifier, useAISuggestion, useAIAutoFillIssue } from '../services/ai/aiHooks';
+import { AIButton } from './AI/AIButtons';
 
 interface IssueTrackerProps {
   issues: Issue[];
@@ -13,8 +14,13 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  const [isRefining, setIsRefining] = useState(false);
+  const [rawInput, setRawInput] = useState('');
   
+  // AI Hooks
+  const { run: runClassifier, loading: classifying } = useAIClassifier();
+  const { run: runSuggestion, loading: suggesting } = useAISuggestion();
+  const { run: runAutofill, loading: filling } = useAIAutoFillIssue();
+
   // Form State
   const [formState, setFormState] = useState<Partial<Issue>>({
     awb: '',
@@ -27,12 +33,50 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     status: IssueStatus.OPEN
   });
 
-  const handleRefineChronology = async () => {
+  const handleAutoFill = async () => {
+    if (!rawInput) return;
+    const res = await runAutofill(rawInput);
+    if (res) {
+      setFormState(prev => ({
+        ...prev,
+        awb: res.awb || prev.awb,
+        partnerName: res.partnerName || prev.partnerName,
+        issueType: res.issueType || prev.issueType,
+        chronology: res.chronology || prev.chronology
+      }));
+      // Run classifier after autofill
+      if (res.chronology || rawInput) {
+        const clsRes = await runClassifier(res.chronology || rawInput);
+        if (clsRes) {
+          setFormState(prev => ({
+             ...prev,
+             opcode: clsRes.opcode.toString(),
+             sopRelated: clsRes.sop,
+             division: clsRes.division as Division
+          }));
+        }
+      }
+    }
+  };
+
+  const handleClassify = async () => {
     if (!formState.chronology) return;
-    setIsRefining(true);
-    const refined = await refineChronology(formState.chronology);
-    setFormState(prev => ({ ...prev, chronology: refined }));
-    setIsRefining(false);
+    const res = await runClassifier(formState.chronology);
+    if (res) {
+      setFormState(prev => ({
+        ...prev,
+        opcode: res.opcode.toString(),
+        sopRelated: res.sop,
+        division: res.division as Division
+      }));
+    }
+  };
+
+  const handleSuggest = async (issue: Issue) => {
+    const res = await runSuggestion(issue);
+    if (res) {
+      alert(`AI Recommendation:\n\n${res}`);
+    }
   };
 
   const getSlaStatus = (createdAt: string, status: IssueStatus) => {
@@ -73,6 +117,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     onSaveIssue(newIssue);
     setIsModalOpen(false);
     setFormState({ awb: '', partnerName: '', issueType: '', chronology: '', division: Division.OPS });
+    setRawInput('');
   };
 
   return (
@@ -130,6 +175,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                 <th className="px-6 py-3 font-semibold">AWB / Pengusaha</th>
                 <th className="px-6 py-3 font-semibold">Issue Info</th>
                 <th className="px-6 py-3 font-semibold">Divisi</th>
+                <th className="px-6 py-3 font-semibold">AI Support</th>
                 <th className="px-6 py-3 font-semibold">Action</th>
               </tr>
             </thead>
@@ -164,6 +210,9 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                       {issue.division}
                     </td>
                     <td className="px-6 py-4">
+                       <AIButton onClick={() => handleSuggest(issue)} loading={suggesting} label="Solution" size="sm" variant="outline" icon={Lightbulb} />
+                    </td>
+                    <td className="px-6 py-4">
                       {issue.status !== IssueStatus.DONE && (
                          <button 
                            onClick={() => onSaveIssue({...issue, status: IssueStatus.DONE})}
@@ -176,13 +225,6 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                   </tr>
                 );
               })}
-              {filteredIssues.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
-                    Tidak ada issue ditemukan.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -195,6 +237,21 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
               <AlertTriangle className="text-red-500" /> Log Issue Baru
             </h3>
+
+             {/* AI AutoFill */}
+             <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-4">
+               <div className="flex gap-2">
+                  <textarea
+                    className="flex-1 border border-indigo-200 rounded px-2 py-1 text-sm h-12"
+                    placeholder="Paste chat wa mitra..."
+                    value={rawInput}
+                    onChange={e => setRawInput(e.target.value)}
+                  />
+                  <div className="flex flex-col justify-center">
+                    <AIButton onClick={handleAutoFill} loading={filling} label="Auto" size="sm" />
+                  </div>
+               </div>
+             </div>
             
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -208,7 +265,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                     />
                  </div>
                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Opcode (Optional)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Opcode</label>
                     <input 
                       className="w-full border border-gray-300 rounded p-2 text-sm"
                       value={formState.opcode}
@@ -223,7 +280,6 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                   className="w-full border border-gray-300 rounded p-2 text-sm"
                   value={formState.partnerName}
                   onChange={e => setFormState({...formState, partnerName: e.target.value})}
-                  placeholder="Nama Toko / Pengusaha"
                 />
               </div>
 
@@ -240,14 +296,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="block text-xs font-bold text-gray-500 uppercase">Kronologi Singkat</label>
-                  <button 
-                    onClick={handleRefineChronology}
-                    disabled={isRefining || !formState.chronology}
-                    className="text-[10px] flex items-center gap-1 text-purple-600 hover:bg-purple-50 px-2 py-0.5 rounded border border-purple-200"
-                  >
-                    {isRefining ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>}
-                    AI Refine
-                  </button>
+                  <AIButton onClick={handleClassify} loading={classifying} label="AI Classify Opcode" size="sm" variant="secondary" icon={BrainCircuit} />
                 </div>
                 <textarea 
                   className="w-full border border-gray-300 rounded p-2 text-sm h-24"

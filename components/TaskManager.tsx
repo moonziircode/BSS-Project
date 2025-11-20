@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { Task, TaskCategory, Priority, Division, TaskStatus } from '../types';
-import { Plus, Calendar, ChevronRight, Trash2, CheckCircle, ArrowRight } from 'lucide-react';
-import { determinePriority } from '../services/geminiService';
+import { Plus, Calendar, ChevronRight, Trash2, CheckCircle, ArrowRight, Bot } from 'lucide-react';
+import { useAIPriority, useAIAutoFillTask } from '../services/ai/aiHooks';
+import { AIButton } from './AI/AIButtons';
 
 interface TaskManagerProps {
   tasks: Task[];
@@ -12,7 +14,12 @@ interface TaskManagerProps {
 const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTask }) => {
   const [activeCategory, setActiveCategory] = useState<TaskCategory>(TaskCategory.TODAY);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [rawInput, setRawInput] = useState('');
   
+  // AI Hooks
+  const { run: runPriority, loading: priorityLoading } = useAIPriority();
+  const { run: runAutoFill, loading: autofillLoading } = useAIAutoFillTask();
+
   // Form State
   const [formState, setFormState] = useState<Partial<Task>>({
     title: '',
@@ -20,8 +27,40 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
     category: TaskCategory.TODAY,
     status: TaskStatus.OPEN,
     division: Division.OPS,
-    notes: ''
+    notes: '',
+    priority: Priority.P3 // Default
   });
+
+  const handleAutoFill = async () => {
+    if (!rawInput) return;
+    const res = await runAutoFill(rawInput);
+    if (res) {
+      setFormState(prev => ({
+        ...prev,
+        title: res.title || prev.title,
+        description: res.description || prev.description,
+        division: (res.division as Division) || prev.division,
+        category: (res.category as TaskCategory) || prev.category,
+      }));
+      
+      // Auto run priority check after autofill
+      if (res.title && res.description) {
+         const prioRes = await runPriority(res.title, res.description, res.division || '');
+         if (prioRes) {
+           setFormState(prev => ({ ...prev, priority: prioRes.priorityLevel as Priority }));
+         }
+      }
+    }
+  };
+
+  const handleSmartPriority = async () => {
+    if (!formState.title) return;
+    const res = await runPriority(formState.title, formState.description || '', formState.division || '');
+    if (res) {
+      setFormState(prev => ({ ...prev, priority: res.priorityLevel as Priority }));
+      alert(`AI Reasoning: ${res.reasoning} (Score: ${res.score})`);
+    }
+  };
 
   const filteredTasks = useMemo(() => {
     return tasks
@@ -36,14 +75,12 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
   const handleCreate = () => {
     if (!formState.title) return;
     
-    const priority = determinePriority(formState.title || '', formState.description || '');
-    
     const newTask: Task = {
       id: Math.random().toString(36).substring(7),
       title: formState.title!,
       description: formState.description || '',
       category: formState.category || activeCategory,
-      priority: priority as Priority,
+      priority: formState.priority || Priority.P3,
       status: formState.status || TaskStatus.OPEN,
       division: formState.division || Division.OPS,
       createdAt: new Date().toISOString(),
@@ -53,7 +90,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
     
     onSaveTask(newTask);
     setIsModalOpen(false);
-    setFormState({ title: '', description: '', category: activeCategory });
+    setFormState({ title: '', description: '', category: activeCategory, priority: Priority.P3 });
+    setRawInput('');
   };
 
   const getPriorityBadge = (p: Priority) => {
@@ -68,7 +106,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
     let nextStatus = TaskStatus.OPEN;
     if (task.status === TaskStatus.OPEN) nextStatus = TaskStatus.IN_PROGRESS;
     else if (task.status === TaskStatus.IN_PROGRESS) nextStatus = TaskStatus.CLOSED;
-    else nextStatus = TaskStatus.OPEN; // Cycle back or keep closed? usually keep closed but for toggle sake
+    else nextStatus = TaskStatus.OPEN; 
     
     onSaveTask({ ...task, status: nextStatus });
   };
@@ -173,6 +211,19 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Tambah Tugas Baru</h3>
             
+            {/* AI Helper */}
+            <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-4">
+              <div className="flex gap-2 mb-2">
+                 <input 
+                   className="flex-1 border border-indigo-200 rounded px-2 py-1 text-sm"
+                   placeholder="Ketik cepat: 'Buat laporan SLA Finance besok'"
+                   value={rawInput}
+                   onChange={e => setRawInput(e.target.value)}
+                 />
+                 <AIButton onClick={handleAutoFill} loading={autofillLoading} label="Auto-Fill" size="sm" />
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Judul Tugas</label>
@@ -193,20 +244,22 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
                   value={formState.description}
                   onChange={e => setFormState({...formState, description: e.target.value})}
                 />
-                <p className="text-xs text-gray-500 mt-1">*Prioritas akan ditentukan otomatis dari kata kunci di judul & deskripsi.</p>
+                <div className="mt-2 flex justify-end">
+                   <AIButton onClick={handleSmartPriority} loading={priorityLoading} label="AI Prioritize" size="sm" variant="secondary" icon={Bot} />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prioritas</label>
                   <select 
                     className="w-full border border-gray-300 rounded-lg p-2.5 outline-none bg-white"
-                    value={formState.category}
-                    onChange={e => setFormState({...formState, category: e.target.value as TaskCategory})}
+                    value={formState.priority}
+                    onChange={e => setFormState({...formState, priority: e.target.value as Priority})}
                   >
-                    {Object.values(TaskCategory).map(c => (
-                      <option key={c} value={c}>{c.replace('_', ' ')}</option>
-                    ))}
+                    <option value={Priority.P1}>P1 - High Impact</option>
+                    <option value={Priority.P2}>P2 - Deadline</option>
+                    <option value={Priority.P3}>P3 - Normal</option>
                   </select>
                 </div>
                 <div>
@@ -221,6 +274,19 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                <select 
+                  className="w-full border border-gray-300 rounded-lg p-2.5 outline-none bg-white"
+                  value={formState.category}
+                  onChange={e => setFormState({...formState, category: e.target.value as TaskCategory})}
+                >
+                  {Object.values(TaskCategory).map(c => (
+                    <option key={c} value={c}>{c.replace('_', ' ')}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

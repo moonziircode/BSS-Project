@@ -1,18 +1,20 @@
 
 import React, { useState, useMemo } from 'react';
 import { Task, Issue, VisitNote } from '../types';
-import { CheckCircle2, AlertOctagon, ClipboardList, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
+import { CheckCircle2, AlertOctagon, ClipboardList, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, X, MessageCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import AIChatWindow from './AI/AIChatWindow';
 
 interface DashboardProps {
   tasks: Task[];
   issues: Issue[];
-  visits: VisitNote[]; // Added visits prop
+  visits: VisitNote[]; 
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ tasks, issues, visits }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const todayTasks = tasks.filter(t => t.category === 'TODAY' && t.status !== 'CLOSED');
   const overdueIssues = issues.filter(i => {
@@ -113,10 +115,18 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, issues, visits }) => {
   };
 
   return (
-    <div className="space-y-6 pb-10">
-      <header className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Dashboard Overview</h2>
-        <p className="text-gray-500">Monitor operasional dan jadwal kunjungan.</p>
+    <div className="space-y-6 pb-10 relative">
+      <header className="mb-6 flex justify-between items-end">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Dashboard Overview</h2>
+          <p className="text-gray-500">Monitor operasional dan jadwal kunjungan.</p>
+        </div>
+        <button 
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className="bg-anteraja-purple text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 hover:scale-105 transition-transform"
+        >
+          <MessageCircle /> AI Assistant
+        </button>
       </header>
 
       {/* Stats Grid */}
@@ -250,6 +260,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, issues, visits }) => {
            </div>
         </div>
       )}
+      
+      <AIChatWindow isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 };
