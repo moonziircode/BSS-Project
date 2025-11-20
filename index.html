@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,29 +10,57 @@
     <script src="https://accounts.google.com/gsi/client"></script>
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
             },
             colors: {
-              anteraja: {
-                pink: '#EE2E7E',
-                purple: '#5C2D91',
-                light: '#FFF0F5'
+              bg: {
+                main: '#0F172A',   // Deep Void
+                card: '#1E293B',   // Dark Slate Surface
+                input: '#020617',  // Darker for inputs
+              },
+              neon: {
+                DEFAULT: '#6A8F73', // The Request
+                glow: 'rgba(106, 143, 115, 0.5)',
+                hover: '#55725C',
+              },
+              text: {
+                primary: '#F1F5F9',
+                secondary: '#94A3B8',
               }
+            },
+            boxShadow: {
+              'neu-flat': '4px 4px 10px #0f172a, -4px -4px 10px #2d3b55',
+              'neu-pressed': 'inset 4px 4px 10px #0f172a, inset -4px -4px 10px #2d3b55',
+              'neon': '0 0 10px rgba(106, 143, 115, 0.5)',
             }
           },
         },
       }
     </script>
     <style>
-      body { font-family: 'Inter', sans-serif; background-color: #F3F4F6; }
-      /* Custom scrollbar for cleaner UI */
-      ::-webkit-scrollbar { width: 6px; height: 6px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
-      ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+      body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: #0F172A; 
+        color: #F1F5F9;
+      }
+      
+      /* Custom Dark Scrollbar */
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #0F172A; }
+      ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #6A8F73; }
+
+      .animate-glow {
+        animation: glow 2s infinite alternate;
+      }
+      @keyframes glow {
+        from { box-shadow: 0 0 5px #6A8F7330; }
+        to { box-shadow: 0 0 20px #6A8F7360; }
+      }
     </style>
   <script type="importmap">
 {

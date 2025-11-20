@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { LayoutDashboard, ListTodo, AlertTriangle, MapPin, Menu, Database, Settings, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, ListTodo, AlertTriangle, MapPin, Menu, Database, Settings, Box } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,34 +13,42 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isCo
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { id: 'dashboard', label: 'BE Dashboard', icon: <LayoutDashboard size={20} /> },
     { id: 'tasks', label: 'Task Manager', icon: <ListTodo size={20} /> },
     { id: 'issues', label: 'Issue Tracker', icon: <AlertTriangle size={20} /> },
     { id: 'visits', label: 'Visit Notes', icon: <MapPin size={20} /> },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row text-gray-800">
+    <div className="min-h-screen bg-bg-main flex flex-col md:flex-row text-text-primary selection:bg-neon selection:text-white">
       {/* Mobile Header */}
-      <div className="md:hidden bg-anteraja-purple text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
-        <h1 className="font-bold text-lg">Business Ecosystem</h1>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+      <div className="md:hidden bg-bg-card p-4 flex justify-between items-center sticky top-0 z-50 border-b border-slate-700 shadow-neu-flat">
+        <div className="flex items-center gap-2">
+           <Box className="text-neon" size={24} />
+           <h1 className="font-bold text-lg tracking-wide text-neon">
+             Business Ecosystem
+           </h1>
+        </div>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-300">
           <Menu />
         </button>
       </div>
 
       {/* Sidebar (Desktop) / Drawer (Mobile) */}
       <nav className={`
-        fixed md:sticky md:top-0 h-full z-40 bg-white w-64 border-r border-gray-200 transition-transform transform 
+        fixed md:sticky md:top-0 h-full z-40 bg-bg-card w-64 border-r border-slate-800 shadow-[4px_0_15px_rgba(0,0,0,0.3)] transition-transform transform 
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:translate-x-0 flex flex-col
       `}>
-        <div className="p-6 border-b border-gray-100 hidden md:block">
-          <h1 className="text-xl font-bold text-anteraja-purple">Business Ecosystem</h1>
-          <p className="text-xs text-gray-500 mt-1">Success Specialist</p>
+        <div className="p-8 hidden md:block">
+          <h1 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
+             <Box className="text-neon" size={28} />
+             Business Eco
+          </h1>
+          <p className="text-xs text-neon mt-1 tracking-widest uppercase opacity-80 pl-9">BE Dashboard</p>
         </div>
 
-        <div className="flex-1 py-4">
+        <div className="flex-1 px-4 space-y-3 mt-4">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -48,27 +56,33 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isCo
                 setActiveTab(item.id);
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-6 py-3.5 text-sm font-medium transition-colors
+              className={`w-full flex items-center gap-3 px-5 py-4 text-sm font-medium rounded-xl transition-all duration-300
                 ${activeTab === item.id 
-                  ? 'bg-anteraja-light text-anteraja-pink border-r-4 border-anteraja-pink' 
-                  : 'text-gray-600 hover:bg-gray-50'
+                  ? 'bg-bg-main text-neon shadow-neu-pressed border border-slate-700' 
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-slate-800/50'
                 }`}
             >
-              {item.icon}
+              <span>
+                {item.icon}
+              </span>
               {item.label}
             </button>
           ))}
         </div>
         
-        <div className="p-4 border-t border-gray-100 space-y-3">
-          <div className={`p-3 rounded-lg text-xs border ${isConnectedToSheets ? 'bg-green-50 border-green-100 text-green-800' : 'bg-blue-50 border-blue-100 text-blue-800'}`}>
-            <div className="flex items-center gap-2 mb-1 font-semibold">
-              {isConnectedToSheets ? <Database size={14} /> : <Database size={14} />}
-              {isConnectedToSheets ? 'Google Sheets Sync' : 'Local Storage'}
+        <div className="p-6 border-t border-slate-800 space-y-4">
+          <div className={`p-3 rounded-xl text-xs flex items-center gap-3 transition-all
+            ${isConnectedToSheets 
+              ? 'bg-green-900/20 border border-green-800/50 text-green-400' 
+              : 'bg-blue-900/20 border border-blue-800/50 text-blue-400'
+            }`}>
+            <div className={`p-1.5 rounded-full ${isConnectedToSheets ? 'bg-green-500/20' : 'bg-blue-500/20'}`}>
+              <Database size={14} /> 
             </div>
-            <p className="opacity-80">
-              {isConnectedToSheets ? 'Data tersimpan di cloud.' : 'Data tersimpan lokal.'}
-            </p>
+            <div className="flex-1">
+               <p className="font-bold">{isConnectedToSheets ? 'Cloud Sync' : 'Local Mode'}</p>
+               <p className="opacity-60 text-[10px]">{isConnectedToSheets ? 'Active' : 'Storage'}</p>
+            </div>
           </div>
 
           <button 
@@ -76,22 +90,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isCo
               onOpenSettings();
               setIsMobileMenuOpen(false);
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-3 text-xs font-bold text-gray-400 bg-bg-main rounded-xl shadow-neu-flat hover:text-neon transition-colors active:shadow-neu-pressed"
           >
-            <Settings size={14} /> Konfigurasi Koneksi
+            <Settings size={14} /> SETTINGS
           </button>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen bg-bg-main scroll-smooth">
         {children}
       </main>
 
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

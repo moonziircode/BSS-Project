@@ -33,7 +33,7 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   
-  // Sheets Config Form - Initialized with User Provided Defaults
+  // Sheets Config Form
   const [config, setConfig] = useState({
     clientId: DEFAULT_CLIENT_ID,
     apiKey: DEFAULT_API_KEY,
@@ -62,7 +62,7 @@ const App: React.FC = () => {
 
   const handleConnectSheets = async () => {
     if (!config.clientId || !config.apiKey) {
-      alert("Harap isi Client ID dan API Key.");
+      alert("Please fill Client ID and API Key.");
       return;
     }
 
@@ -83,7 +83,7 @@ const App: React.FC = () => {
       sheetsService.requestAccessToken();
     } catch (error) {
       console.error("Connection Failed", error);
-      alert("Koneksi Gagal. Pastikan Origin URL (domain app ini) sudah didaftarkan di Google Cloud Console dan Pop-up tidak diblokir.");
+      alert("Connection Failed. Check console for details.");
     } finally {
       setIsLoading(false);
     }
@@ -163,10 +163,10 @@ const App: React.FC = () => {
       onOpenSettings={() => setShowSettings(true)}
     >
       {isLoading && (
-        <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="animate-spin text-anteraja-purple" size={40} />
-            <span className="text-sm font-medium text-gray-600">Syncing with Google Sheets...</span>
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-bg-card border border-slate-700 p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+            <Loader2 className="animate-spin text-neon" size={40} />
+            <span className="text-sm font-bold text-gray-300">Syncing Database...</span>
           </div>
         </div>
       )}
@@ -180,71 +180,66 @@ const App: React.FC = () => {
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <Database className="text-green-600" /> Konfigurasi Database
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-bg-card border border-slate-700 rounded-3xl shadow-2xl w-full max-w-md p-6 animate-scale-up">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Database className="text-neon" /> Database Config
               </h3>
-              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-white">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800 leading-relaxed">
-                Kredensial telah diisi otomatis sesuai permintaan Anda. Klik <strong>Connect & Sync</strong> untuk memulai otorisasi dengan akun Google Anteraja Anda.
+            <div className="space-y-5">
+              <div className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20 text-xs text-blue-300 leading-relaxed">
+                Credentials pre-filled. Click <strong>Connect & Sync</strong> to authorize Google Sheets access.
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Google Sheet ID</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Sheet ID</label>
                 <div className="flex gap-2">
                    <input 
                     type="text"
-                    className="w-full border border-gray-300 rounded p-2 text-sm bg-gray-50"
+                    className="w-full bg-bg-main border-none rounded-xl p-3 text-sm text-gray-300 shadow-neu-pressed outline-none"
                     value={config.spreadsheetId}
                     onChange={e => setConfig({...config, spreadsheetId: e.target.value})}
                   />
-                  <a href={`https://docs.google.com/spreadsheets/d/${config.spreadsheetId}`} target="_blank" rel="noreferrer" className="p-2 text-blue-600 hover:bg-blue-50 rounded border border-transparent hover:border-blue-100">
+                  <a href={`https://docs.google.com/spreadsheets/d/${config.spreadsheetId}`} target="_blank" rel="noreferrer" className="p-3 text-blue-400 bg-bg-main rounded-xl shadow-neu-flat hover:text-blue-300">
                     <ExternalLink size={18} />
                   </a>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Client ID (OAuth 2.0)</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Client ID (OAuth)</label>
                 <input 
                   type="text"
-                  placeholder="xxx.apps.googleusercontent.com"
-                  className="w-full border border-gray-300 rounded p-2 text-sm font-mono bg-gray-50 text-gray-600"
+                  className="w-full bg-bg-main border-none rounded-xl p-3 text-sm text-gray-300 font-mono shadow-neu-pressed outline-none"
                   value={config.clientId}
                   onChange={e => setConfig({...config, clientId: e.target.value})}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">API Key</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">API Key</label>
                 <input 
                   type="text"
-                  placeholder="AIza..."
-                  className="w-full border border-gray-300 rounded p-2 text-sm font-mono bg-gray-50 text-gray-600"
+                  className="w-full bg-bg-main border-none rounded-xl p-3 text-sm text-gray-300 font-mono shadow-neu-pressed outline-none"
                   value={config.apiKey}
                   onChange={e => setConfig({...config, apiKey: e.target.value})}
                 />
               </div>
 
-              <div className="pt-4 border-t border-gray-100">
+              <div className="pt-6 border-t border-slate-800">
                 <button 
                   onClick={handleConnectSheets}
                   disabled={isLoading}
-                  className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 shadow-sm flex justify-center items-center gap-2 disabled:opacity-50"
+                  className="w-full py-3 bg-neon text-white rounded-xl font-bold hover:bg-neon-hover shadow-neon transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:shadow-none"
                 >
                   {isLoading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />}
                   Connect & Sync
                 </button>
-                <p className="text-[10px] text-center text-gray-400 mt-2">
-                   Akan membuka pop-up Google Sign In.
-                </p>
               </div>
             </div>
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Issue, IssueStatus, Division } from '../types';
 import { Plus, AlertTriangle, Search, Filter, Clock, BrainCircuit, Lightbulb } from 'lucide-react';
@@ -16,12 +15,10 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [rawInput, setRawInput] = useState('');
   
-  // AI Hooks
   const { run: runClassifier, loading: classifying } = useAIClassifier();
   const { run: runSuggestion, loading: suggesting } = useAISuggestion();
   const { run: runAutofill, loading: filling } = useAIAutoFillIssue();
 
-  // Form State
   const [formState, setFormState] = useState<Partial<Issue>>({
     awb: '',
     partnerName: '',
@@ -44,7 +41,6 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
         issueType: res.issueType || prev.issueType,
         chronology: res.chronology || prev.chronology
       }));
-      // Run classifier after autofill
       if (res.chronology || rawInput) {
         const clsRes = await runClassifier(res.chronology || rawInput);
         if (clsRes) {
@@ -80,7 +76,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
   };
 
   const getSlaStatus = (createdAt: string, status: IssueStatus) => {
-    if (status === IssueStatus.DONE) return { breached: false, label: 'Selesai' };
+    if (status === IssueStatus.DONE) return { breached: false, label: 'Solved' };
     
     const created = new Date(createdAt).getTime();
     const now = new Date().getTime();
@@ -124,25 +120,25 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     <div className="space-y-6">
       <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Issue Tracker</h2>
-          <p className="text-gray-500 text-sm">Monitor SOP & Opcode Issues (SLA 24 Jam).</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Issue Tracker</h2>
+          <p className="text-gray-400 text-sm">SLA Monitoring (24h Limit)</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm font-medium"
+          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/50 px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-neu-flat transition-all active:scale-95"
         >
-          <Plus size={18} /> Lapor Issue
+          <Plus size={18} /> <span className="font-bold">Report Issue</span>
         </button>
       </header>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4">
+      <div className="bg-bg-card p-4 rounded-2xl shadow-neu-flat border border-slate-800 flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
           <input 
             type="text" 
-            placeholder="Cari AWB, Nama Pengusaha, atau Issue..." 
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-anteraja-pink"
+            placeholder="Search AWB, Partner, Issue..." 
+            className="w-full pl-12 pr-4 py-3 bg-bg-main rounded-xl text-white shadow-neu-pressed outline-none focus:ring-1 focus:ring-neon placeholder-gray-600"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -153,10 +149,10 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${
                 filterStatus === status 
-                  ? 'bg-gray-800 text-white border-gray-800' 
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  ? 'bg-neon text-white border-neon shadow-neon' 
+                  : 'bg-bg-main text-gray-500 border-slate-700 hover:text-white'
               }`}
             >
               {status}
@@ -166,57 +162,57 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
       </div>
 
       {/* Table View */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-bg-card rounded-2xl shadow-neu-flat border border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
+            <thead className="bg-bg-main text-gray-400 text-[10px] uppercase tracking-wider border-b border-slate-800">
               <tr>
-                <th className="px-6 py-3 font-semibold">Status / SLA</th>
-                <th className="px-6 py-3 font-semibold">AWB / Pengusaha</th>
-                <th className="px-6 py-3 font-semibold">Issue Info</th>
-                <th className="px-6 py-3 font-semibold">Divisi</th>
-                <th className="px-6 py-3 font-semibold">AI Support</th>
-                <th className="px-6 py-3 font-semibold">Action</th>
+                <th className="px-6 py-4 font-bold">Status / SLA</th>
+                <th className="px-6 py-4 font-bold">AWB / Partner</th>
+                <th className="px-6 py-4 font-bold">Issue Info</th>
+                <th className="px-6 py-4 font-bold">Division</th>
+                <th className="px-6 py-4 font-bold">AI</th>
+                <th className="px-6 py-4 font-bold">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-800">
               {filteredIssues.map(issue => {
                 const sla = getSlaStatus(issue.createdAt, issue.status);
                 return (
-                  <tr key={issue.id} className="hover:bg-gray-50 transition-colors group">
+                  <tr key={issue.id} className="hover:bg-slate-800/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col items-start gap-1">
-                        <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                          issue.status === IssueStatus.DONE ? 'bg-green-100 text-green-800' : 
-                          issue.status === IssueStatus.PROGRESS ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                      <div className="flex flex-col items-start gap-2">
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${
+                          issue.status === IssueStatus.DONE ? 'bg-green-500/10 text-green-400 border-green-500/30' : 
+                          issue.status === IssueStatus.PROGRESS ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-gray-500/10 text-gray-400 border-gray-600'
                         }`}>
                           {issue.status}
                         </span>
-                        <span className={`flex items-center gap-1 text-xs font-medium ${sla.breached ? 'text-red-600 animate-pulse' : 'text-gray-400'}`}>
+                        <span className={`flex items-center gap-1 text-xs font-medium ${sla.breached ? 'text-red-400 animate-pulse' : 'text-gray-500'}`}>
                            <Clock size={12} /> {sla.label}
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      <div className="text-sm">{issue.awb}</div>
-                      <div className="text-xs font-bold text-anteraja-purple">{issue.partnerName}</div>
-                      {issue.opcode && <div className="text-xs text-gray-500 font-normal">Op: {issue.opcode}</div>}
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-white font-mono">{issue.awb}</div>
+                      <div className="text-xs font-bold text-neon mt-1">{issue.partnerName}</div>
+                      {issue.opcode && <div className="text-[10px] text-gray-500 font-normal mt-1">Op: {issue.opcode}</div>}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-800">{issue.issueType}</div>
-                      <div className="text-xs text-gray-500 truncate max-w-[250px] whitespace-pre-line">{issue.chronology}</div>
+                      <div className="text-sm font-bold text-gray-300">{issue.issueType}</div>
+                      <div className="text-xs text-gray-500 truncate max-w-[250px] mt-1 opacity-80">{issue.chronology}</div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-400">
                       {issue.division}
                     </td>
                     <td className="px-6 py-4">
-                       <AIButton onClick={() => handleSuggest(issue)} loading={suggesting} label="Solution" size="sm" variant="outline" icon={Lightbulb} />
+                       <AIButton onClick={() => handleSuggest(issue)} loading={suggesting} label="Solve" size="sm" variant="secondary" icon={Lightbulb} />
                     </td>
                     <td className="px-6 py-4">
                       {issue.status !== IssueStatus.DONE && (
                          <button 
                            onClick={() => onSaveIssue({...issue, status: IssueStatus.DONE})}
-                           className="text-green-600 hover:bg-green-50 px-3 py-1 rounded-lg text-xs font-semibold border border-green-200 transition-colors"
+                           className="text-neon hover:text-white hover:bg-neon/20 px-3 py-1.5 rounded-lg text-xs font-bold border border-neon/30 transition-colors"
                          >
                            Resolve
                          </button>
@@ -232,18 +228,18 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <AlertTriangle className="text-red-500" /> Log Issue Baru
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-bg-card border border-slate-700 rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto animate-scale-up">
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
+              <AlertTriangle className="text-red-500" /> Report Issue
             </h3>
 
              {/* AI AutoFill */}
-             <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-4">
-               <div className="flex gap-2">
+             <div className="bg-bg-main p-4 rounded-xl shadow-neu-pressed mb-6">
+               <div className="flex gap-3">
                   <textarea
-                    className="flex-1 border border-indigo-200 rounded px-2 py-1 text-sm h-12"
-                    placeholder="Paste chat wa mitra..."
+                    className="flex-1 bg-transparent text-white text-sm outline-none placeholder-gray-600 h-12 resize-none"
+                    placeholder="Paste WhatsApp chat here..."
                     value={rawInput}
                     onChange={e => setRawInput(e.target.value)}
                   />
@@ -253,21 +249,21 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                </div>
              </div>
             
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nomor AWB</label>
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">AWB</label>
                     <input 
-                      className="w-full border border-gray-300 rounded p-2 text-sm"
+                      className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
                       value={formState.awb}
                       onChange={e => setFormState({...formState, awb: e.target.value})}
-                      placeholder="Contoh: 1000283..."
+                      placeholder="1000..."
                     />
                  </div>
                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Opcode</label>
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Opcode</label>
                     <input 
-                      className="w-full border border-gray-300 rounded p-2 text-sm"
+                      className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
                       value={formState.opcode}
                       onChange={e => setFormState({...formState, opcode: e.target.value})}
                     />
@@ -275,71 +271,73 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Pengusaha / Toko</label>
+                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Partner Name</label>
                 <input 
-                  className="w-full border border-gray-300 rounded p-2 text-sm"
+                  className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
                   value={formState.partnerName}
                   onChange={e => setFormState({...formState, partnerName: e.target.value})}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jenis Issue</label>
+                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Issue Type</label>
                 <input 
-                  className="w-full border border-gray-300 rounded p-2 text-sm"
-                  placeholder="Misal: Salah routing, Barang rusak..."
+                  className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
+                  placeholder="e.g. Wrong Routing"
                   value={formState.issueType}
                   onChange={e => setFormState({...formState, issueType: e.target.value})}
                 />
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-bold text-gray-500 uppercase">Kronologi Singkat</label>
-                  <AIButton onClick={handleClassify} loading={classifying} label="AI Classify Opcode" size="sm" variant="secondary" icon={BrainCircuit} />
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-bold text-gray-400 uppercase">Chronology</label>
+                  <AIButton onClick={handleClassify} loading={classifying} label="Classify" size="sm" variant="secondary" icon={BrainCircuit} />
                 </div>
                 <textarea 
-                  className="w-full border border-gray-300 rounded p-2 text-sm h-24"
+                  className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm h-24 resize-none"
                   value={formState.chronology}
                   onChange={e => setFormState({...formState, chronology: e.target.value})}
-                  placeholder="Ceritakan masalahnya..."
+                  placeholder="Describe what happened..."
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Divisi Dituju</label>
-                  <select 
-                    className="w-full border border-gray-300 rounded p-2 text-sm bg-white"
-                    value={formState.division}
-                    onChange={e => setFormState({...formState, division: e.target.value as Division})}
-                  >
-                    {Object.values(Division).map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Division</label>
+                  <div className="relative">
+                    <select 
+                        className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm appearance-none"
+                        value={formState.division}
+                        onChange={e => setFormState({...formState, division: e.target.value as Division})}
+                    >
+                        {Object.values(Division).map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">SOP Terkait</label>
+                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">SOP Ref</label>
                    <input 
-                      className="w-full border border-gray-300 rounded p-2 text-sm"
-                      placeholder="Nomor SOP..."
+                      className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
+                      placeholder="e.g. 287"
                       value={formState.sopRelated}
                       onChange={e => setFormState({...formState, sopRelated: e.target.value})}
                     />
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4 mt-4 border-t border-gray-100">
+              <div className="flex gap-4 pt-4 mt-4">
                 <button 
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2 border border-gray-300 rounded text-gray-600 text-sm font-semibold"
+                  className="flex-1 py-3 rounded-xl text-gray-400 font-bold hover:text-white transition-colors"
                 >
-                  Batal
+                  Cancel
                 </button>
                 <button 
                   onClick={handleCreate}
-                  className="flex-1 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700"
+                  className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all"
                 >
-                  Simpan Issue
+                  Submit Report
                 </button>
               </div>
             </div>

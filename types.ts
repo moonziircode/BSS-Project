@@ -109,4 +109,7 @@ export interface AIChatMessage {
 export interface AIChatResponse {
   reply: string;
   suggestedActions: string[];
+  action?: 
+    | { type: 'CREATE_TASK'; data: Task }
+    | { type: 'CREATE_VISIT'; data: VisitNote };
 }
