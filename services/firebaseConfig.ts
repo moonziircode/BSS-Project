@@ -1,28 +1,21 @@
-
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 
-// Safe Environment Variable Accessor with Fallbacks for Preview
+// Safe Environment Variable Accessor with Default Fallbacks for Preview
 const getEnvVar = (key: string, fallback: string): string => {
-  let value = '';
   try {
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
       // @ts-ignore
-      value = import.meta.env[key];
-    }
-    // @ts-ignore
-    else if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      // @ts-ignore
-      value = process.env[key];
+      return import.meta.env[key];
     }
   } catch (e) {
-    // ignore error
+    console.error(`Error reading env var ${key}`, e);
   }
-
-  // Return found value or the hardcoded fallback (for preview purposes)
-  return value || fallback;
+  
+  // Return fallback if env var is missing (Essential for this preview environment to work)
+  return fallback;
 };
 
 const firebaseConfig = {

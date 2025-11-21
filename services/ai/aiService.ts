@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 
 // Model Constants for Gemini
 export const MODEL_FAST = "gemini-2.5-flash"; 
-export const MODEL_SMART = "gemini-2.5-flash"; // Using Flash for speed/cost, upgrade to pro if needed
+export const MODEL_SMART = "gemini-2.5-flash"; // Using Flash for speed/cost
 
 export interface AIRequestOptions {
   model?: string;
@@ -11,26 +11,20 @@ export interface AIRequestOptions {
   jsonMode?: boolean;
 }
 
-// Safe Environment Variable Accessor
-const getEnvVar = (key: string): string => {
+const getApiKey = (): string => {
   try {
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
       // @ts-ignore
-      return import.meta.env[key];
-    }
-    // @ts-ignore
-    else if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      // @ts-ignore
-      return process.env[key];
+      return import.meta.env.VITE_GEMINI_API_KEY;
     }
   } catch (e) {
-    console.warn(`Error reading env var ${key}`, e);
+    console.error("Error accessing VITE_GEMINI_API_KEY", e);
   }
   return "";
 };
 
-const apiKey = getEnvVar("VITE_GEMINI_API_KEY");
+const apiKey = getApiKey();
 
 /**
  * Base function to call Google Gemini API.
@@ -46,9 +40,10 @@ export const callAI = async (
   } = options;
 
   if (!apiKey) {
-    const errorMsg = "Gemini API Key (VITE_GEMINI_API_KEY) is missing.";
+    const errorMsg = "Gemini API Key (VITE_GEMINI_API_KEY) is missing in .env file.";
     console.error(errorMsg);
-    throw new Error(errorMsg);
+    // Returning empty to prevent app crash, but functionality will fail
+    return jsonMode ? {} : "AI Service Unavailable: Missing API Key.";
   }
 
   const ai = new GoogleGenAI({ apiKey: apiKey });
@@ -103,6 +98,6 @@ export const callAI = async (
 
   } catch (error) {
     console.error("Gemini API Error:", error);
-    throw error;
+    return jsonMode ? {} : "Error communicating with AI service.";
   }
 };
