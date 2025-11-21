@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { LayoutDashboard, ListTodo, AlertTriangle, MapPin, Menu, Database, Settings, Box } from 'lucide-react';
+import { LayoutDashboard, ListTodo, AlertTriangle, MapPin, Menu, Database, Settings, Box, Flame } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -73,15 +73,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isCo
         <div className="p-6 border-t border-slate-800 space-y-4">
           <div className={`p-3 rounded-xl text-xs flex items-center gap-3 transition-all
             ${isConnectedToSheets 
-              ? 'bg-green-900/20 border border-green-800/50 text-green-400' 
+              ? 'bg-orange-900/20 border border-orange-800/50 text-orange-400' 
               : 'bg-blue-900/20 border border-blue-800/50 text-blue-400'
             }`}>
-            <div className={`p-1.5 rounded-full ${isConnectedToSheets ? 'bg-green-500/20' : 'bg-blue-500/20'}`}>
-              <Database size={14} /> 
+            <div className={`p-1.5 rounded-full ${isConnectedToSheets ? 'bg-orange-500/20' : 'bg-blue-500/20'}`}>
+              {isConnectedToSheets ? <Flame size={14} /> : <Database size={14} />}
             </div>
             <div className="flex-1">
-               <p className="font-bold">{isConnectedToSheets ? 'Cloud Sync' : 'Local Mode'}</p>
-               <p className="opacity-60 text-[10px]">{isConnectedToSheets ? 'Active' : 'Storage'}</p>
+               <p className="font-bold">{isConnectedToSheets ? 'Firebase Live' : 'Local Mode'}</p>
+               <p className="opacity-60 text-[10px]">{isConnectedToSheets ? 'Realtime DB' : 'Storage'}</p>
             </div>
           </div>
 
