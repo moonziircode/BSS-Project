@@ -1,5 +1,5 @@
 import { db } from "./firebaseConfig";
-import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, setDoc, deleteDoc, onSnapshot, Unsubscribe } from "firebase/firestore";
 import { Task, Issue, VisitNote } from "../types";
 
 const COLLECTIONS = {
@@ -9,20 +9,39 @@ const COLLECTIONS = {
 };
 
 export const firebaseService = {
-  // --- TASKS ---
-  getTasks: async (): Promise<Task[]> => {
-    try {
-      const snapshot = await getDocs(collection(db, COLLECTIONS.TASKS));
-      return snapshot.docs.map((doc) => doc.data() as Task);
-    } catch (error) {
-      console.error("Error getting tasks:", error);
-      return [];
-    }
+  // --- REAL-TIME LISTENERS ---
+
+  subscribeToTasks: (callback: (tasks: Task[]) => void): Unsubscribe => {
+    return onSnapshot(collection(db, COLLECTIONS.TASKS), (snapshot) => {
+      const tasks = snapshot.docs.map((doc) => doc.data() as Task);
+      callback(tasks);
+    }, (error) => {
+      console.error("Error listening to tasks:", error);
+    });
   },
+
+  subscribeToIssues: (callback: (issues: Issue[]) => void): Unsubscribe => {
+    return onSnapshot(collection(db, COLLECTIONS.ISSUES), (snapshot) => {
+      const issues = snapshot.docs.map((doc) => doc.data() as Issue);
+      callback(issues);
+    }, (error) => {
+      console.error("Error listening to issues:", error);
+    });
+  },
+
+  subscribeToVisits: (callback: (visits: VisitNote[]) => void): Unsubscribe => {
+    return onSnapshot(collection(db, COLLECTIONS.VISITS), (snapshot) => {
+      const visits = snapshot.docs.map((doc) => doc.data() as VisitNote);
+      callback(visits);
+    }, (error) => {
+      console.error("Error listening to visits:", error);
+    });
+  },
+
+  // --- WRITE OPERATIONS ---
 
   saveTask: async (task: Task): Promise<void> => {
     try {
-      // Uses task.id as the document ID for easy updates
       await setDoc(doc(db, COLLECTIONS.TASKS, task.id), task);
     } catch (error) {
       console.error("Error saving task:", error);
@@ -37,33 +56,11 @@ export const firebaseService = {
     }
   },
 
-  // --- ISSUES ---
-  getIssues: async (): Promise<Issue[]> => {
-    try {
-      const snapshot = await getDocs(collection(db, COLLECTIONS.ISSUES));
-      return snapshot.docs.map((doc) => doc.data() as Issue);
-    } catch (error) {
-      console.error("Error getting issues:", error);
-      return [];
-    }
-  },
-
   saveIssue: async (issue: Issue): Promise<void> => {
     try {
       await setDoc(doc(db, COLLECTIONS.ISSUES, issue.id), issue);
     } catch (error) {
       console.error("Error saving issue:", error);
-    }
-  },
-
-  // --- VISITS ---
-  getVisits: async (): Promise<VisitNote[]> => {
-    try {
-      const snapshot = await getDocs(collection(db, COLLECTIONS.VISITS));
-      return snapshot.docs.map((doc) => doc.data() as VisitNote);
-    } catch (error) {
-      console.error("Error getting visits:", error);
-      return [];
     }
   },
 
