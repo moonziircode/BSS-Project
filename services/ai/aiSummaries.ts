@@ -1,5 +1,5 @@
 
-import { callOpenAI, MODEL_SMART } from './aiService';
+import { callAI, MODEL_SMART } from './aiService';
 import { VisitNote } from '../../types';
 
 export const summarizeVisit = async (visit: Partial<VisitNote>): Promise<string> => {
@@ -17,7 +17,7 @@ export const summarizeVisit = async (visit: Partial<VisitNote>): Promise<string>
     - **Status**: [Positif/Negatif/Netral]
   `;
 
-  return await callOpenAI(
+  return await callAI(
     [{ role: "system", content: "You are a Business Success Specialist Assistant." }, { role: "user", content: prompt }],
     { model: MODEL_SMART }
   );
@@ -39,7 +39,7 @@ export const autoFillVisitForm = async (rawText: string) => {
      If info is missing, use empty string or 0.
   `;
   
-  return await callOpenAI(
+  return await callAI(
     [{ role: "system", content: "You are a data extractor." }, { role: "user", content: prompt }],
     { model: MODEL_SMART, jsonMode: true }
   );

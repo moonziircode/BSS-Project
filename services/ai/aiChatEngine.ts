@@ -1,5 +1,5 @@
 
-import { callOpenAI, MODEL_SMART } from './aiService';
+import { callAI, MODEL_SMART } from './aiService';
 import { AIChatMessage, AIChatResponse, Task, Issue, VisitNote, TaskCategory } from '../../types';
 
 const SYSTEM_PROMPT = `
@@ -68,5 +68,5 @@ export const sendMessage = async (
     { role: "user", content: userMessage }
   ];
 
-  return await callOpenAI(messages, { model: MODEL_SMART, jsonMode: true });
+  return await callAI(messages, { model: MODEL_SMART, jsonMode: true });
 };

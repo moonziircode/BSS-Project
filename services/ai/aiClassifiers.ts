@@ -1,6 +1,6 @@
 
 import { AIIssueClassification, Division } from '../../types';
-import { callOpenAI, MODEL_FAST } from './aiService';
+import { callAI, MODEL_FAST } from './aiService';
 
 export const classifyIssue = async (inputText: string): Promise<AIIssueClassification> => {
   const prompt = `
@@ -25,7 +25,7 @@ export const classifyIssue = async (inputText: string): Promise<AIIssueClassific
     }
   `;
 
-  return await callOpenAI(
+  return await callAI(
     [{ role: "system", content: "You are an expert Logistics Operations AI." }, { role: "user", content: prompt }],
     { model: MODEL_FAST, jsonMode: true }
   );
@@ -42,7 +42,7 @@ export const autoFillIssueForm = async (text: string) => {
       "chronology": "string (tidy up the story)"
     }
   `;
-  return await callOpenAI(
+  return await callAI(
     [{ role: "system", content: "You are a data extraction assistant." }, { role: "user", content: prompt }],
     { model: MODEL_FAST, jsonMode: true }
   );

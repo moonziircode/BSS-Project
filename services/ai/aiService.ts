@@ -1,27 +1,41 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Model Constants
-// Using 2.5 Flash for both for high speed and reliability. 
-// You can switch SMART to 'gemini-2.0-flash-exp' or 'gemini-1.5-pro' if desired.
+// Model Constants for Gemini
 export const MODEL_FAST = "gemini-2.5-flash"; 
-export const MODEL_SMART = "gemini-2.5-flash"; 
-
-// Hardcoded fallback key from project settings for client-side usage
-const FALLBACK_KEY = 'AIzaSyDT5vM-7nIoVt5MXMtOIgojK24bxkP94hI';
+export const MODEL_SMART = "gemini-2.5-flash"; // Using Flash for speed/cost, upgrade to pro if needed
 
 export interface AIRequestOptions {
   model?: string;
   temperature?: number;
   jsonMode?: boolean;
-  maxRetries?: number;
-  timeout?: number;
 }
 
+// Safe Environment Variable Accessor
+const getEnvVar = (key: string): string => {
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+      // @ts-ignore
+      return import.meta.env[key];
+    }
+    // @ts-ignore
+    else if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      // @ts-ignore
+      return process.env[key];
+    }
+  } catch (e) {
+    console.warn(`Error reading env var ${key}`, e);
+  }
+  return "";
+};
+
+const apiKey = getEnvVar("VITE_GEMINI_API_KEY");
+
 /**
- * Base function to call AI (Gemini Wrapper).
+ * Base function to call Google Gemini API.
  */
-export const callOpenAI = async (
+export const callAI = async (
   messages: { role: string; content: string }[],
   options: AIRequestOptions = {}
 ): Promise<any> => {
@@ -31,43 +45,39 @@ export const callOpenAI = async (
     jsonMode = false,
   } = options;
 
-  // Use process.env.API_KEY if available, otherwise use fallback
-  const apiKey = process.env.API_KEY || FALLBACK_KEY;
-
   if (!apiKey) {
-    throw new Error("API Key is missing.");
+    const errorMsg = "Gemini API Key (VITE_GEMINI_API_KEY) is missing.";
+    console.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
-  const ai = new GoogleGenAI({ apiKey });
-
-  // 1. Extract System Instruction
-  const systemMsg = messages.find(m => m.role === 'system');
-  const systemInstruction = systemMsg ? systemMsg.content : undefined;
-
-  // 2. Construct Conversation History
-  // Filter out system message from contents as it's handled via config
-  const conversationMessages = messages.filter(m => m.role !== 'system');
-  
-  // Format messages into a single context string if multiple exist (Chat History)
-  let contents = "";
-  if (conversationMessages.length === 1) {
-      contents = conversationMessages[0].content;
-  } else {
-      // Explicitly label turns for the model
-      contents = conversationMessages.map(m => `${m.role === 'user' ? 'User' : 'Model'}: ${m.content}`).join('\n\n');
-  }
+  const ai = new GoogleGenAI({ apiKey: apiKey });
 
   try {
+    // Transform OpenAI-style messages to Gemini Content format
+    let systemInstruction = "";
+    const contents = [];
+
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        systemInstruction += msg.content + "\n";
+      } else if (msg.role === 'user') {
+        contents.push({ role: 'user', parts: [{ text: msg.content }] });
+      } else if (msg.role === 'assistant') {
+        contents.push({ role: 'model', parts: [{ text: msg.content }] });
+      }
+    }
+
     const config: any = {
-        temperature,
+      temperature: temperature,
     };
-    
+
     if (systemInstruction) {
-        config.systemInstruction = systemInstruction;
+      config.systemInstruction = systemInstruction;
     }
 
     if (jsonMode) {
-        config.responseMimeType = "application/json";
+      config.responseMimeType = "application/json";
     }
 
     const response = await ai.models.generateContent({
@@ -80,19 +90,19 @@ export const callOpenAI = async (
 
     if (jsonMode) {
       try {
-        // Sanitize markdown code blocks if present
-        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Clean markdown code blocks if present (Gemini sometimes adds ```json ... ```)
+        const cleanText = text.replace(/```json\n?|\n?```/g, "").trim();
         return JSON.parse(cleanText);
       } catch (e) {
         console.error("JSON Parse Error:", e, "Text:", text);
-        return {}; // Fallback
+        return {}; 
       }
     }
 
     return text;
 
   } catch (error) {
-    console.error("AI Generation Error:", error);
+    console.error("Gemini API Error:", error);
     throw error;
   }
 };

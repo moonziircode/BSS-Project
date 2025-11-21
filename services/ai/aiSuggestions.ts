@@ -1,5 +1,5 @@
 
-import { callOpenAI, MODEL_SMART, MODEL_FAST } from './aiService';
+import { callAI, MODEL_SMART, MODEL_FAST } from './aiService';
 import { Issue, VisitNote } from '../../types';
 
 export const getSolutionSuggestion = async (issue: Issue): Promise<string> => {
@@ -12,7 +12,7 @@ export const getSolutionSuggestion = async (issue: Issue): Promise<string> => {
     Berikan 3 langkah perbaikan konkret untuk mitra/tim ops.
   `;
 
-  return await callOpenAI(
+  return await callAI(
     [{ role: "system", content: "You are a Senior Logistics Operations Manager." }, { role: "user", content: prompt }],
     { model: MODEL_SMART }
   );
@@ -27,7 +27,7 @@ export const getOperationalImprovement = async (visit: VisitNote): Promise<strin
     Berikan rekomendasi strategi untuk meningkatkan jumlah paket (volume) dan kualitas layanan di titik ini.
   `;
 
-  return await callOpenAI(
+  return await callAI(
     [{ role: "system", content: "You are a Business Consultant for Logistics." }, { role: "user", content: prompt }],
     { model: MODEL_SMART }
   );
@@ -53,7 +53,7 @@ export const getPriorityScore = async (taskTitle: string, taskDesc: string, divi
       }
     `;
   
-    return await callOpenAI(
+    return await callAI(
       [{ role: "system", content: "You are an automated task manager." }, { role: "user", content: prompt }],
       { model: MODEL_SMART, jsonMode: true }
     );
@@ -70,7 +70,7 @@ export const autoFillTask = async (text: string) => {
         "category": "TODAY | THIS_WEEK | WAITING_UPDATE"
       }
     `;
-    return await callOpenAI(
+    return await callAI(
       [{ role: "system", content: "You are a task parser." }, { role: "user", content: prompt }],
       { model: MODEL_FAST, jsonMode: true }
     );
