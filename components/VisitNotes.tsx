@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { VisitNote, VisitStatus } from '../types';
 import { useAISummary, useAIAutoFillVisit, useAIImprovement } from '../services/ai/aiHooks';
@@ -34,7 +35,8 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
     findings: '',
     operationalIssues: '',
     suggestions: '',
-    status: 'PLANNED'
+    status: 'PLANNED',
+    summary: ''
   });
 
   const filteredVisits = useMemo(() => {
@@ -54,6 +56,8 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
     return filtered.sort((a, b) => {
       const dateA = activeTab === 'PLANNED' ? a.visitDatePlan : a.visitDateActual;
       const dateB = activeTab === 'PLANNED' ? b.visitDatePlan : b.visitDateActual;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
       return new Date(dateB).getTime() - new Date(dateA).getTime(); 
     });
   }, [visits, activeTab, filterDate]);
@@ -127,7 +131,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
       findings: formState.findings || '',
       operationalIssues: formState.operationalIssues || '',
       suggestions: formState.suggestions || '',
-      summary: formState.summary,
+      summary: formState.summary || '',
       status: (formState.status as VisitStatus) || 'PLANNED'
     };
     onSaveVisit(newVisit);

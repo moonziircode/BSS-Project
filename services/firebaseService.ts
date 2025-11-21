@@ -1,3 +1,4 @@
+
 import { db } from "./firebaseConfig";
 import { collection, doc, setDoc, deleteDoc, onSnapshot, Unsubscribe } from "firebase/firestore";
 import { Task, Issue, VisitNote } from "../types";
@@ -6,6 +7,11 @@ const COLLECTIONS = {
   TASKS: "tasks",
   ISSUES: "issues",
   VISITS: "visits",
+};
+
+// Helper to remove undefined fields because Firestore setDoc crashes on them
+const cleanData = <T>(data: T): T => {
+  return JSON.parse(JSON.stringify(data));
 };
 
 export const firebaseService = {
@@ -42,7 +48,7 @@ export const firebaseService = {
 
   saveTask: async (task: Task): Promise<void> => {
     try {
-      await setDoc(doc(db, COLLECTIONS.TASKS, task.id), task);
+      await setDoc(doc(db, COLLECTIONS.TASKS, task.id), cleanData(task));
     } catch (error) {
       console.error("Error saving task:", error);
     }
@@ -58,7 +64,7 @@ export const firebaseService = {
 
   saveIssue: async (issue: Issue): Promise<void> => {
     try {
-      await setDoc(doc(db, COLLECTIONS.ISSUES, issue.id), issue);
+      await setDoc(doc(db, COLLECTIONS.ISSUES, issue.id), cleanData(issue));
     } catch (error) {
       console.error("Error saving issue:", error);
     }
@@ -66,7 +72,7 @@ export const firebaseService = {
 
   saveVisit: async (visit: VisitNote): Promise<void> => {
     try {
-      await setDoc(doc(db, COLLECTIONS.VISITS, visit.id), visit);
+      await setDoc(doc(db, COLLECTIONS.VISITS, visit.id), cleanData(visit));
     } catch (error) {
       console.error("Error saving visit:", error);
     }
