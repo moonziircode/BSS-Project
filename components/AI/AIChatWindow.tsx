@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAIChat } from '../../services/ai/aiHooks';
-import { Send, X, Bot, Loader2, Trash2, StopCircle } from 'lucide-react';
-import { Task, Issue, VisitNote } from '../../types';
+import { Send, X, Bot, Loader2, Trash2, StopCircle, CheckCircle2 } from 'lucide-react';
+import { Task, Issue, VisitNote, TaskCategory, Priority, TaskStatus, Division } from '../../types';
 
 interface AIChatWindowProps {
   isOpen: boolean;
@@ -16,13 +17,14 @@ interface AIChatWindowProps {
 const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, issues, visits, onSaveTask, onSaveVisit }) => {
   const { history, loading, send, clear } = useAIChat();
   const [input, setInput] = useState('');
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [history]);
+  }, [history, actionFeedback]);
 
   if (!isOpen) return null;
 
@@ -30,15 +32,55 @@ const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, iss
     if (!input.trim()) return;
     const msg = input;
     setInput('');
+    setActionFeedback(null);
     
     const res = await send(msg, { tasks, issues, visits });
     
     // Handle Actions if present in AI Response
     if (res && res.action) {
-       if (res.action.type === 'CREATE_TASK' && onSaveTask) {
-         onSaveTask(res.action.data as Task);
-       } else if (res.action.type === 'CREATE_VISIT' && onSaveVisit) {
-         onSaveVisit(res.action.data as VisitNote);
+       try {
+         if (res.action.type === 'CREATE_TASK' && onSaveTask) {
+           const rawTask = res.action.data as Partial<Task>;
+           // Hydrate the task with required system fields
+           const newTask: Task = {
+             id: Math.random().toString(36).substring(7),
+             title: rawTask.title || 'New AI Task',
+             description: rawTask.description || '',
+             category: rawTask.category || TaskCategory.TODAY,
+             priority: rawTask.priority || Priority.P3,
+             status: TaskStatus.OPEN,
+             division: rawTask.division || Division.OPS,
+             createdAt: new Date().toISOString(),
+             notes: rawTask.notes || '',
+             deadline: rawTask.deadline
+           };
+           onSaveTask(newTask);
+           setActionFeedback(`✅ Successfully created task: "${newTask.title}"`);
+         } 
+         else if (res.action.type === 'CREATE_VISIT' && onSaveVisit) {
+           const rawVisit = res.action.data as Partial<VisitNote>;
+           // Hydrate visit with required fields
+           const newVisit: VisitNote = {
+             id: Math.random().toString(36).substring(7),
+             partnerName: rawVisit.partnerName || 'Unknown Partner',
+             visitDatePlan: rawVisit.visitDatePlan || new Date().toLocaleDateString('en-CA'),
+             status: 'PLANNED',
+             googleMapsLink: rawVisit.googleMapsLink || '',
+             coordinates: rawVisit.coordinates || '',
+             visitDateActual: '',
+             ordersLastMonth: rawVisit.ordersLastMonth || 0,
+             ordersDailyAvg: rawVisit.ordersDailyAvg || 0,
+             findings: rawVisit.findings || '',
+             operationalIssues: rawVisit.operationalIssues || '',
+             suggestions: rawVisit.suggestions || '',
+             summary: ''
+           };
+           onSaveVisit(newVisit);
+           setActionFeedback(`✅ Successfully scheduled visit to: "${newVisit.partnerName}" on ${newVisit.visitDatePlan}`);
+         }
+       } catch (err) {
+         console.error("Failed to execute AI action:", err);
+         setActionFeedback("❌ Failed to execute action automatically.");
        }
     }
   };
@@ -55,7 +97,7 @@ const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, iss
             <h3 className="font-bold text-sm tracking-wide">AI Assistant</h3>
             <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
                <span className="w-1.5 h-1.5 bg-neon rounded-full shadow-[0_0_5px_#6A8F73]"></span>
-               Online & Connected
+               Context Aware
             </div>
           </div>
         </div>
@@ -80,16 +122,22 @@ const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, iss
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-transparent custom-scrollbar" ref={scrollRef}>
         {history.length === 0 && (
-          <div className="text-center mt-20 px-4">
+          <div className="text-center mt-10 px-4">
             <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 bg-bg-main shadow-neu-flat border border-slate-800">
                <Bot size={40} className="text-neon animate-pulse"/>
             </div>
             <p className="font-bold text-white text-lg mb-2">How can I help?</p>
-            <p className="text-xs text-gray-500 mb-6">I have access to your tasks, issues, and schedule.</p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <button onClick={() => setInput("My priority tasks today?")} className="text-xs bg-bg-main border border-slate-700 px-4 py-2 rounded-xl hover:border-neon hover:text-neon transition-colors shadow-sm">📅 Today's Tasks</button>
-              <button onClick={() => setInput("Who should I visit next?")} className="text-xs bg-bg-main border border-slate-700 px-4 py-2 rounded-xl hover:border-neon hover:text-neon transition-colors shadow-sm">📍 Visit Plans</button>
-              <button onClick={() => setInput("Remind me to check email")} className="text-xs bg-bg-main border border-slate-700 px-4 py-2 rounded-xl hover:border-neon hover:text-neon transition-colors shadow-sm">📝 Create Task</button>
+            <p className="text-xs text-gray-500 mb-6">I can manage your schedule and tasks automatically.</p>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => setInput("Buat task cek SLA Finance besok")} className="text-xs text-left bg-bg-main border border-slate-700 px-4 py-3 rounded-xl hover:border-neon hover:text-neon transition-colors shadow-sm">
+                📝 "Buat task cek SLA Finance besok"
+              </button>
+              <button onClick={() => setInput("Jadwalkan visit ke Toko Makmur Senin depan")} className="text-xs text-left bg-bg-main border border-slate-700 px-4 py-3 rounded-xl hover:border-neon hover:text-neon transition-colors shadow-sm">
+                📍 "Jadwalkan visit ke Toko Makmur Senin depan"
+              </button>
+              <button onClick={() => setInput("Apa agenda saya pekan depan?")} className="text-xs text-left bg-bg-main border border-slate-700 px-4 py-3 rounded-xl hover:border-neon hover:text-neon transition-colors shadow-sm">
+                📅 "Apa agenda saya pekan depan?"
+              </button>
             </div>
           </div>
         )}
@@ -108,11 +156,20 @@ const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, iss
              </div>
           </div>
         ))}
+        
+        {actionFeedback && (
+           <div className="flex justify-center animate-fade-in-up">
+              <div className="bg-green-500/10 border border-green-500/30 text-green-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg">
+                 <CheckCircle2 size={14} /> {actionFeedback}
+              </div>
+           </div>
+        )}
+
         {loading && (
           <div className="flex justify-start">
             <div className="bg-bg-main border border-slate-700 rounded-2xl p-4 shadow-sm flex items-center gap-3">
               <Loader2 size={16} className="animate-spin text-neon" />
-              <span className="text-xs text-gray-400">Processing data...</span>
+              <span className="text-xs text-gray-400">Processing...</span>
             </div>
           </div>
         )}
@@ -125,7 +182,7 @@ const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, iss
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask anything..."
+            placeholder="Type a command..."
             className="flex-1 bg-bg-main border-none rounded-xl px-4 py-3 text-sm text-white shadow-neu-pressed focus:ring-1 focus:ring-neon outline-none"
           />
           <button 

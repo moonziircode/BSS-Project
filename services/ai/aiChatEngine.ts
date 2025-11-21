@@ -5,56 +5,66 @@ import { AIChatMessage, AIChatResponse, Task, Issue, VisitNote, TaskCategory, Pr
 const getDateContext = () => {
   const now = new Date();
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const todayStr = now.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
   
-  // Calculate Next Week
-  const nextWeek = new Date(now);
-  nextWeek.setDate(now.getDate() + 7);
-  const nextWeekStr = nextWeek.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  const formatDate = (d: Date) => d.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  
+  const todayStr = formatDate(now);
+  
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const tomorrowStr = formatDate(tomorrow);
+
+  // Next Week (Monday)
+  const nextMonday = new Date(now);
+  nextMonday.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7));
+  const nextMondayStr = formatDate(nextMonday);
 
   return `
-    HARI INI: ${days[now.getDay()]}, ${todayStr}
-    PEKAN DEPAN MULAI: ${nextWeekStr}
+    INFO WAKTU SAAT INI:
+    - Hari ini: ${days[now.getDay()]}, ${todayStr}
+    - Besok: ${tomorrowStr}
+    - Senin Depan: ${nextMondayStr}
   `;
 };
 
 const SYSTEM_PROMPT = `
-You are "Anteraja Super Assistant", the central brain of the Business Ecosystem Dashboard.
-Your goal is to manage the specialist's schedule, solve operational issues, and execute commands.
+You are "Anteraja Super Assistant", an intelligent operational bot for Business Success Specialists.
+Your capability includes reading the database and **EXECUTING ACTIONS** to modify the database.
 
-CAPABILITIES:
-1. **READ EVERYTHING**: You have access to ALL Tasks, Issues, and Visit Plans in the database.
-2. **PLANNING**: You can see future dates. If asked about "Next Week", check the "PLANNED VISITS" list for dates starting from next week.
-3. **ACTION**: You can CREATE Tasks and Visits directly.
+### ROLE & BEHAVIOR
+1.  **Assist & Execute**: If the user asks to create, schedule, or remind, you MUST generate a JSON Action.
+2.  **Data Aware**: You have access to the user's Tasks, Issues, and Visit Plans. Use this to answer questions like "Do I have visits next week?".
+3.  **Language**: Professional Indonesian.
 
-DATA CONTEXT:
-The user will provide a list of active items below. Use this data to answer questions accurately.
-If the user asks "Apa agenda pekan depan?", look at items with dates in the future.
+### HOW TO EXECUTE ACTIONS (CRITICAL)
+When the user wants to create a Task or Visit, do NOT just say "I did it".
+You must return a JSON object with an "action" field containing the data.
 
-COMMAND INSTRUCTIONS:
-If the user asks to Create/Schedule/Remind something, you MUST return a JSON with an "action" field.
-
-Format for Creating a TASK:
+#### 1. CREATING A TASK
+Trigger keywords: "Buat tugas", "Ingatkan saya", "Catat task", "Remind me".
+JSON Structure:
 {
-  "reply": "Siap, saya sudah buatkan tugasnya.",
+  "reply": "Siap, tugas '[Title]' telah ditambahkan ke daftar [Category].",
   "suggestedActions": [],
   "action": {
     "type": "CREATE_TASK",
     "data": {
-      "title": "Short Title",
-      "description": "Full details",
-      "category": "TODAY" | "THIS_WEEK",
-      "priority": "PRIORITY_1" | "PRIORITY_2" | "PRIORITY_3",
+      "title": "Short & Clear Title",
+      "description": "Full details from user",
+      "category": "TODAY" | "THIS_WEEK" | "WAITING_UPDATE",
+      "priority": "PRIORITY_1" (High/Urgent) | "PRIORITY_2" (Deadline) | "PRIORITY_3" (Normal),
       "status": "OPEN",
-      "division": "Operations",
-      "deadline": "YYYY-MM-DD" (Optional)
+      "division": "Operations" | "Finance" | "IT" | "Network" | "CS" | "PM",
+      "deadline": "YYYY-MM-DD" (Calculate based on user request, e.g. 'Tomorrow')
     }
   }
 }
 
-Format for Creating a VISIT PLAN:
+#### 2. SCHEDULING A VISIT
+Trigger keywords: "Jadwalkan visit", "Plan visit", "Kunjungan ke".
+JSON Structure:
 {
-  "reply": "Oke, rencana visit sudah dijadwalkan.",
+  "reply": "Oke, rencana kunjungan ke [Partner] dijadwalkan untuk tanggal [Date].",
   "suggestedActions": [],
   "action": {
     "type": "CREATE_VISIT",
@@ -64,12 +74,22 @@ Format for Creating a VISIT PLAN:
       "status": "PLANNED",
       "findings": "",
       "operationalIssues": "",
-      "suggestions": ""
+      "suggestions": "",
+      "ordersLastMonth": 0,
+      "ordersDailyAvg": 0,
+      "googleMapsLink": "",
+      "coordinates": ""
     }
   }
 }
 
-If no action is needed, just return "reply" and "suggestedActions".
+### RESPONSE FORMAT
+Always return a valid JSON object.
+If no action is needed, return:
+{
+  "reply": "Your answer here...",
+  "suggestedActions": ["Suggestion 1", "Suggestion 2"]
+}
 `;
 
 const formatContext = (tasks: Task[], issues: Issue[], visits: VisitNote[]) => {
@@ -97,7 +117,7 @@ const formatContext = (tasks: Task[], issues: Issue[], visits: VisitNote[]) => {
   return `
     ${getDateContext()}
 
-    === DATABASE CONTENTS ===
+    === DATABASE CONTENTS (READ ONLY) ===
     
     [ACTIVE TASKS & DEADLINES]
     ${taskSummary}
