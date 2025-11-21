@@ -2,6 +2,8 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 
+// Using hardcoded credentials to ensure immediate functionality in the preview environment.
+// In a production build, you should replace these with process.env or import.meta.env variables.
 const firebaseConfig = {
   apiKey: "AIzaSyBc3_H7nAUuBundM2vdseGgACThzI1K1L0",
   authDomain: "be-dashboard-b5f44.firebaseapp.com",
