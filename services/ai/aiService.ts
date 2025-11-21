@@ -12,15 +12,26 @@ export interface AIRequestOptions {
 }
 
 const getApiKey = (): string => {
+  // 1. Try Vite Env (VITE_GEMINI_API_KEY)
   try {
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
       // @ts-ignore
       return import.meta.env.VITE_GEMINI_API_KEY;
     }
-  } catch (e) {
-    console.error("Error accessing VITE_GEMINI_API_KEY", e);
-  }
+  } catch (e) {}
+
+  // 2. Try Standard Process Env (API_KEY or GEMINI_API_KEY)
+  try {
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env) {
+      // @ts-ignore
+      if (process.env.API_KEY) return process.env.API_KEY;
+      // @ts-ignore
+      if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+    }
+  } catch (e) {}
+
   return "";
 };
 
@@ -40,9 +51,8 @@ export const callAI = async (
   } = options;
 
   if (!apiKey) {
-    const errorMsg = "Gemini API Key (VITE_GEMINI_API_KEY) is missing in .env file.";
+    const errorMsg = "Gemini API Key is missing. Please set VITE_GEMINI_API_KEY in .env or ensure process.env.API_KEY is available.";
     console.error(errorMsg);
-    // Returning empty to prevent app crash, but functionality will fail
     return jsonMode ? {} : "AI Service Unavailable: Missing API Key.";
   }
 
