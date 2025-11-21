@@ -3,14 +3,15 @@ import React, { useState, useMemo } from 'react';
 import { VisitNote, VisitStatus } from '../types';
 import { useAISummary, useAIAutoFillVisit, useAIImprovement } from '../services/ai/aiHooks';
 import { AIButton } from './AI/AIButtons';
-import { MapPin, Sparkles, ChevronDown, ChevronUp, Navigation, Calendar, Edit, CheckCircle, Clock, CalendarDays, History, TrendingUp } from 'lucide-react';
+import { MapPin, Sparkles, ChevronDown, ChevronUp, Navigation, Calendar, Edit, CheckCircle, Clock, CalendarDays, History, TrendingUp, Trash2 } from 'lucide-react';
 
 interface VisitNotesProps {
   visits: VisitNote[];
   onSaveVisit: (visit: VisitNote) => void;
+  onDeleteVisit: (id: string) => void;
 }
 
-const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
+const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVisit }) => {
   const [activeTab, setActiveTab] = useState<'PLANNED' | 'HISTORY'>('PLANNED');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -87,20 +88,34 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
     }
   };
 
-  const handleEdit = (visit: VisitNote) => {
+  const handleEdit = (e: React.MouseEvent, visit: VisitNote) => {
+    e.stopPropagation();
     setEditingId(visit.id);
     setFormState(visit);
     setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleMarkDone = (visit: VisitNote) => {
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this visit plan permanently?")) {
+       onDeleteVisit(id);
+    }
+  };
+
+  const handleMarkDone = (e: React.MouseEvent, visit: VisitNote) => {
+    e.stopPropagation();
     const updated: VisitNote = {
       ...visit,
       status: 'DONE',
       visitDateActual: new Date().toLocaleDateString('en-CA'), 
     };
     onSaveVisit(updated);
+  };
+
+  const handleRescheduleClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setRescheduleId(id);
   };
 
   const handleReschedule = () => {
@@ -132,6 +147,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
       operationalIssues: formState.operationalIssues || '',
       suggestions: formState.suggestions || '',
       summary: formState.summary || '',
+      // IMPORTANT: Preserve 'DONE' status if we are editing history
       status: (formState.status as VisitStatus) || 'PLANNED'
     };
     onSaveVisit(newVisit);
@@ -180,7 +196,9 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
       {isFormOpen && (
         <div className="bg-bg-card p-6 rounded-3xl shadow-neu-flat border border-slate-700 mb-10 animate-fade-in-down">
           <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
-             <h3 className="text-xl font-bold text-white">{editingId ? 'Edit Visit' : 'New Visit Plan'}</h3>
+             <h3 className="text-xl font-bold text-white">
+                {editingId ? (formState.status === 'DONE' ? 'Edit History' : 'Edit Visit Plan') : 'New Visit Plan'}
+             </h3>
           </div>
           
           {!editingId && (
@@ -324,7 +342,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
           <div className="flex justify-end gap-4">
             <button onClick={resetForm} className="px-5 py-2.5 text-gray-400 hover:text-white font-bold">Cancel</button>
             <button onClick={handleSubmit} disabled={!formState.partnerName} className="px-6 py-2.5 bg-neon text-white rounded-xl font-bold shadow-neon hover:bg-neon-hover disabled:opacity-50 disabled:shadow-none transition-all">
-              {editingId ? 'Update' : 'Save Plan'}
+              {editingId ? (formState.status === 'DONE' ? 'Update History' : 'Update Plan') : 'Save Plan'}
             </button>
           </div>
         </div>
@@ -400,12 +418,18 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit }) => {
                  </div>
 
                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                    {visit.status !== 'DONE' && (
+                    {visit.status !== 'DONE' ? (
                        <>
-                         <button onClick={() => setRescheduleId(visit.id)} className="text-xs flex items-center gap-1 text-amber-400 hover:text-amber-300 px-3 py-2 rounded-lg border border-amber-500/30 transition-colors"><Clock size={14}/> Reschedule</button>
-                         <button onClick={() => handleEdit(visit)} className="text-xs flex items-center gap-1 text-gray-400 hover:text-white px-3 py-2 rounded-lg border border-gray-600 transition-colors"><Edit size={14}/> Edit</button>
-                         <button onClick={() => handleMarkDone(visit)} className="text-xs flex items-center gap-1 bg-neon text-white px-4 py-2 rounded-lg shadow-neon hover:bg-neon-hover transition-colors font-bold"><CheckCircle size={14}/> Done</button>
+                         <button onClick={(e) => handleRescheduleClick(e, visit.id)} className="text-xs flex items-center gap-1 text-amber-400 hover:text-amber-300 px-3 py-2 rounded-lg border border-amber-500/30 transition-colors"><Clock size={14}/> Reschedule</button>
+                         <button onClick={(e) => handleEdit(e, visit)} className="text-xs flex items-center gap-1 text-gray-400 hover:text-white px-3 py-2 rounded-lg border border-gray-600 transition-colors"><Edit size={14}/> Edit</button>
+                         <button onClick={(e) => handleDelete(e, visit.id)} className="text-xs flex items-center gap-1 text-red-500 hover:text-red-400 px-3 py-2 rounded-lg border border-red-500/30 hover:bg-red-500/10 transition-colors" title="Delete Plan"><Trash2 size={14}/></button>
+                         <button onClick={(e) => handleMarkDone(e, visit)} className="text-xs flex items-center gap-1 bg-neon text-white px-4 py-2 rounded-lg shadow-neon hover:bg-neon-hover transition-colors font-bold"><CheckCircle size={14}/> Done</button>
                        </>
+                    ) : (
+                       // Edit button for History
+                       <button onClick={(e) => handleEdit(e, visit)} className="text-xs flex items-center gap-1 text-gray-500 hover:text-white px-3 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors">
+                          <Edit size={14}/> Edit Details
+                       </button>
                     )}
                     <button onClick={() => setExpandedId(expandedId === visit.id ? null : visit.id)} className="p-2 hover:bg-slate-800 rounded-lg text-gray-400 transition-colors">
                        {expandedId === visit.id ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}

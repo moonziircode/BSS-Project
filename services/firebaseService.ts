@@ -77,4 +77,12 @@ export const firebaseService = {
       console.error("Error saving visit:", error);
     }
   },
+
+  deleteVisit: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.VISITS, id));
+    } catch (error) {
+      console.error("Error deleting visit:", error);
+    }
+  },
 };

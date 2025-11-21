@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -83,6 +84,10 @@ const App: React.FC = () => {
     await firebaseService.saveVisit(visit);
   };
 
+  const handleDeleteVisit = async (id: string) => {
+    await firebaseService.deleteVisit(id);
+  };
+
   return (
     <Layout 
       activeTab={activeTab} 
@@ -102,7 +107,7 @@ const App: React.FC = () => {
       {activeTab === 'dashboard' && <Dashboard tasks={tasks} issues={issues} visits={visits} />}
       {activeTab === 'tasks' && <TaskManager tasks={tasks} onSaveTask={handleSaveTask} onDeleteTask={handleDeleteTask} />}
       {activeTab === 'issues' && <IssueTracker issues={issues} onSaveIssue={handleSaveIssue} />}
-      {activeTab === 'visits' && <VisitNotes visits={visits} onSaveVisit={handleSaveVisit} />}
+      {activeTab === 'visits' && <VisitNotes visits={visits} onSaveVisit={handleSaveVisit} onDeleteVisit={handleDeleteVisit} />}
       
       <ChecklistModal isOpen={showChecklist} onClose={() => { setShowChecklist(false); sessionStorage.setItem('HAS_SEEN_CHECKLIST', 'true'); }} />
 
