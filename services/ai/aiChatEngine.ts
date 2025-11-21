@@ -1,51 +1,112 @@
 
 import { callAI, MODEL_SMART } from './aiService';
-import { AIChatMessage, AIChatResponse, Task, Issue, VisitNote, TaskCategory } from '../../types';
+import { AIChatMessage, AIChatResponse, Task, Issue, VisitNote, TaskCategory, Priority, Division, TaskStatus } from '../../types';
+
+const getDateContext = () => {
+  const now = new Date();
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const todayStr = now.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+  
+  // Calculate Next Week
+  const nextWeek = new Date(now);
+  nextWeek.setDate(now.getDate() + 7);
+  const nextWeekStr = nextWeek.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+
+  return `
+    HARI INI: ${days[now.getDay()]}, ${todayStr}
+    PEKAN DEPAN MULAI: ${nextWeekStr}
+  `;
+};
 
 const SYSTEM_PROMPT = `
-You are "Anteraja AI Assistant", a helpful assistant for Business Success Specialists.
-Your goal is to help manage logistics partners (Pengusaha), solve operational issues (First/Mid/Last mile), and explain SOPs.
+You are "Anteraja Super Assistant", the central brain of the Business Ecosystem Dashboard.
+Your goal is to manage the specialist's schedule, solve operational issues, and execute commands.
 
-You have access to the user's real-time operational data (Tasks, Issues, Visits).
-Use this data to answer questions like "Apa tugas saya hari ini?" or "Mitra mana yang harus saya kunjungi?".
+CAPABILITIES:
+1. **READ EVERYTHING**: You have access to ALL Tasks, Issues, and Visit Plans in the database.
+2. **PLANNING**: You can see future dates. If asked about "Next Week", check the "PLANNED VISITS" list for dates starting from next week.
+3. **ACTION**: You can CREATE Tasks and Visits directly.
 
-Output Format:
-Always return a JSON object:
+DATA CONTEXT:
+The user will provide a list of active items below. Use this data to answer questions accurately.
+If the user asks "Apa agenda pekan depan?", look at items with dates in the future.
+
+COMMAND INSTRUCTIONS:
+If the user asks to Create/Schedule/Remind something, you MUST return a JSON with an "action" field.
+
+Format for Creating a TASK:
 {
-  "reply": "Your conversational answer here (use formatting like bold or lists)",
-  "suggestedActions": ["Action 1", "Action 2"] (Short button text for next steps)
+  "reply": "Siap, saya sudah buatkan tugasnya.",
+  "suggestedActions": [],
+  "action": {
+    "type": "CREATE_TASK",
+    "data": {
+      "title": "Short Title",
+      "description": "Full details",
+      "category": "TODAY" | "THIS_WEEK",
+      "priority": "PRIORITY_1" | "PRIORITY_2" | "PRIORITY_3",
+      "status": "OPEN",
+      "division": "Operations",
+      "deadline": "YYYY-MM-DD" (Optional)
+    }
+  }
 }
+
+Format for Creating a VISIT PLAN:
+{
+  "reply": "Oke, rencana visit sudah dijadwalkan.",
+  "suggestedActions": [],
+  "action": {
+    "type": "CREATE_VISIT",
+    "data": {
+      "partnerName": "Partner Name",
+      "visitDatePlan": "YYYY-MM-DD",
+      "status": "PLANNED",
+      "findings": "",
+      "operationalIssues": "",
+      "suggestions": ""
+    }
+  }
+}
+
+If no action is needed, just return "reply" and "suggestedActions".
 `;
 
 const formatContext = (tasks: Task[], issues: Issue[], visits: VisitNote[]) => {
-  const today = new Date().toLocaleDateString('en-CA');
-  
-  const taskSummary = tasks
+  // Sort visits by date to help AI understand the timeline
+  const sortedVisits = [...visits]
+    .filter(v => v.status !== 'DONE') // Only future/planned
+    .sort((a, b) => (a.visitDatePlan || '9999').localeCompare(b.visitDatePlan || '9999'));
+
+  const sortedTasks = [...tasks]
     .filter(t => t.status !== 'CLOSED')
-    .map(t => `- [${t.category}] ${t.title} (${t.priority})`)
-    .join('\n');
+    .sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
 
-  const issueSummary = issues
-    .filter(i => i.status !== 'DONE')
-    .map(i => `- ${i.awb} (${i.partnerName}): ${i.issueType}`)
-    .join('\n');
+  const taskSummary = sortedTasks.length > 0 
+    ? sortedTasks.map(t => `- [${t.deadline || 'No Date'}] ${t.title} (${t.priority})`).join('\n')
+    : 'No active tasks.';
 
-  const visitSummary = visits
-    .filter(v => v.status === 'PLANNED')
-    .map(v => `- ${v.partnerName} (Plan: ${v.visitDatePlan || 'Unscheduled'})`)
-    .join('\n');
+  const issueSummary = issues.length > 0
+    ? issues.filter(i => i.status !== 'DONE').map(i => `- ${i.awb} (${i.partnerName}): ${i.issueType}`).join('\n')
+    : 'No open issues.';
+
+  const visitSummary = sortedVisits.length > 0
+    ? sortedVisits.map(v => `- [${v.visitDatePlan || 'Unscheduled'}] Visit ke ${v.partnerName}`).join('\n')
+    : 'No planned visits.';
 
   return `
-    CURRENT CONTEXT DATA (Today: ${today}):
+    ${getDateContext()}
+
+    === DATABASE CONTENTS ===
     
-    ACTIVE TASKS:
-    ${taskSummary || 'No active tasks.'}
+    [ACTIVE TASKS & DEADLINES]
+    ${taskSummary}
 
-    OPEN ISSUES:
-    ${issueSummary || 'No open issues.'}
+    [OPEN ISSUES / SLA]
+    ${issueSummary}
 
-    PLANNED VISITS:
-    ${visitSummary || 'No planned visits.'}
+    [FUTURE VISIT PLANS]
+    ${visitSummary}
   `;
 };
 
