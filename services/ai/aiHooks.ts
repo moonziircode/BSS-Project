@@ -2,7 +2,15 @@
 import { useState, useCallback } from 'react';
 import { classifyIssue, autoFillIssueForm } from './aiClassifiers';
 import { summarizeVisit, autoFillVisitForm } from './aiSummaries';
-import { getSolutionSuggestion, getOperationalImprovement, getPriorityScore, autoFillTask } from './aiSuggestions';
+import { 
+  getSolutionSuggestion, 
+  getOperationalImprovement, 
+  getPriorityScore, 
+  autoFillTask,
+  analyzePartnerTrend,
+  askSOP,
+  draftMessage
+} from './aiSuggestions';
 import { sendMessage } from './aiChatEngine';
 import { AIChatMessage, Task, Issue, VisitNote, Partner, SOP } from '../../types';
 
@@ -44,6 +52,11 @@ export const useAIImprovement = () => useAI(getOperationalImprovement);
 
 export const useAIPriority = () => useAI(getPriorityScore);
 export const useAIAutoFillTask = () => useAI(autoFillTask);
+
+// New Hooks
+export const useAIPartnerAnalysis = () => useAI(analyzePartnerTrend);
+export const useAIAskSOP = () => useAI(askSOP);
+export const useAIDraftMessage = () => useAI(draftMessage);
 
 export const useAIChat = () => {
   const [history, setHistory] = useState<AIChatMessage[]>([]);

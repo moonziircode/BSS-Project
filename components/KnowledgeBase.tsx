@@ -1,7 +1,9 @@
 
 import React, { useState } from 'react';
 import { SOP, Contact, Division } from '../types';
-import { BookOpen, Users, Calculator, Search, ChevronDown, ChevronRight, Plus, Trash2, Phone, Mail } from 'lucide-react';
+import { BookOpen, Users, Calculator, Search, ChevronDown, ChevronRight, Plus, Trash2, Phone, Mail, MessageSquarePlus } from 'lucide-react';
+import { useAIAskSOP, useAIDraftMessage } from '../services/ai/aiHooks';
+import { AIButton } from './AI/AIButtons';
 
 interface KnowledgeBaseProps {
   sops: SOP[];
@@ -17,6 +19,11 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ sops, contacts, onSaveSOP
   const [search, setSearch] = useState('');
   const [expandedSOP, setExpandedSOP] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // AI Hooks
+  const { run: runAskSOP, loading: asking } = useAIAskSOP();
+  const { run: runDraft, loading: drafting } = useAIDraftMessage();
+  const [aiAnswer, setAiAnswer] = useState('');
 
   // Calculator State
   const [dailyPkg, setDailyPkg] = useState(0);
@@ -69,6 +76,17 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ sops, contacts, onSaveSOP
       setSopForm({ title: '', category: '', content: '' });
       setContactForm({ name: '', role: '', phone: '', division: Division.OPS });
   };
+  
+  const handleDraft = async (c: Contact) => {
+      const topic = prompt("Pesan ini tentang apa? (misal: Revisi Insentif)");
+      if(!topic) return;
+      
+      const msg = await runDraft(c, topic);
+      if(msg) {
+          navigator.clipboard.writeText(msg);
+          alert("Draft disalin ke clipboard:\n\n" + msg);
+      }
+  };
 
   return (
     <div className="space-y-6">
@@ -85,13 +103,38 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ sops, contacts, onSaveSOP
         </header>
 
         {activeTab !== 'CALCULATOR' && (
-            <div className="flex gap-2 mb-4">
-                <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
-                    <input className="w-full bg-zinc-900 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-white transition-colors" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
-                </div>
-                <button onClick={() => setIsModalOpen(true)} className="bg-white text-black px-4 rounded-lg text-sm font-bold hover:bg-zinc-200"><Plus size={18}/></button>
-            </div>
+            <>
+                {activeTab === 'SOP' ? (
+                    <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/10 mb-4">
+                        <div className="flex gap-2">
+                            <input 
+                                className="flex-1 bg-transparent text-white text-sm outline-none placeholder-zinc-600" 
+                                placeholder="Search SOP or Ask AI (e.g. 'Berapa denda telat scan?')"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                            <AIButton onClick={async () => {
+                                const ans = await runAskSOP(search, sops);
+                                setAiAnswer(ans || '');
+                            }} loading={asking} label="Ask AI" size="sm" />
+                            <button onClick={() => setIsModalOpen(true)} className="bg-white text-black px-4 rounded-lg text-sm font-bold hover:bg-zinc-200"><Plus size={18}/></button>
+                        </div>
+                        {aiAnswer && (
+                            <div className="mt-3 p-3 bg-emerald-900/20 border border-emerald-500/30 rounded text-sm text-emerald-200 animate-fade-in-down">
+                                🤖 {aiAnswer}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex gap-2 mb-4">
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                            <input className="w-full bg-zinc-900 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-white transition-colors" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+                        </div>
+                        <button onClick={() => setIsModalOpen(true)} className="bg-white text-black px-4 rounded-lg text-sm font-bold hover:bg-zinc-200"><Plus size={18}/></button>
+                    </div>
+                )}
+            </>
         )}
 
         {activeTab === 'SOP' && (
@@ -124,7 +167,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ sops, contacts, onSaveSOP
         {activeTab === 'DIRECTORY' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredContacts.map(c => (
-                    <div key={c.id} className="glass-panel p-5 rounded-xl flex flex-col justify-between hover:bg-zinc-900/20">
+                    <div key={c.id} className="glass-panel p-5 rounded-xl flex flex-col justify-between hover:bg-zinc-900/20 relative group">
                         <div>
                            <div className="flex justify-between items-start">
                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center text-white font-bold mb-3 border border-white/10">
@@ -141,6 +184,10 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ sops, contacts, onSaveSOP
                             </div>
                         </div>
                          <button onClick={() => onDeleteContact(c.id)} className="absolute top-4 right-4 text-zinc-800 hover:text-red-900"><Trash2 size={14}/></button>
+                         
+                         <button onClick={() => handleDraft(c)} className="absolute bottom-4 right-4 text-zinc-400 hover:text-white text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all bg-zinc-800 px-2 py-1 rounded border border-zinc-700">
+                            <MessageSquarePlus size={14} /> Draft WA
+                         </button>
                     </div>
                 ))}
             </div>

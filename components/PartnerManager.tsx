@@ -1,8 +1,10 @@
 
 import React, { useState } from 'react';
 import { Partner } from '../types';
-import { Users, TrendingUp, AlertCircle, Minus, Map as MapIcon, Plus, Trash2 } from 'lucide-react';
+import { Users, TrendingUp, AlertCircle, Minus, Map as MapIcon, Plus, Trash2, Sparkles } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Cell } from 'recharts';
+import { useAIPartnerAnalysis } from '../services/ai/aiHooks';
+import { AIButton } from './AI/AIButtons';
 
 interface PartnerManagerProps {
   partners: Partner[];
@@ -14,6 +16,9 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
   const [activeTab, setActiveTab] = useState<'LIST' | 'MAP'>('LIST');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // AI Hook
+  const { run: runAnalysis, loading: analyzing } = useAIPartnerAnalysis();
   
   const [formState, setFormState] = useState<Partial<Partner>>({
     name: '',
@@ -68,6 +73,12 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
       setEditingId(p.id);
       setFormState(p);
       setIsModalOpen(true);
+  };
+  
+  const handleAnalyze = async (e: React.MouseEvent, p: Partner) => {
+      e.stopPropagation();
+      const insight = await runAnalysis(p);
+      if (insight) alert(`🤖 AI Business Insight untuk ${p.name}:\n\n${insight}`);
   };
 
   const renderTrend = (p: Partner) => {
@@ -150,6 +161,17 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                              <span className="block text-[9px] text-zinc-500 uppercase">Current</span>
                              <span className="text-xs font-mono text-white font-bold">{p.volumeM1}</span>
                           </div>
+                       </div>
+                       
+                       <div className="mt-3 border-t border-white/5 pt-2 flex justify-end">
+                           <AIButton 
+                              onClick={(e) => handleAnalyze(e, p)} 
+                              loading={analyzing} 
+                              label="Analisa Bisnis" 
+                              size="sm" 
+                              variant="secondary" 
+                              icon={Sparkles} 
+                           />
                        </div>
                    </div>
                ))}
