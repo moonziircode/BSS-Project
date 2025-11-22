@@ -30,6 +30,18 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     status: IssueStatus.OPEN
   });
 
+  // --- Formatting Helpers ---
+  const toTitleCase = (str: string) => {
+    return str.replace(/\w\S*/g, (txt) => {
+      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    });
+  };
+
+  const toSentenceCase = (str: string) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const handleAutoFill = async () => {
     if (!rawInput) return;
     const res = await runAutofill(rawInput);
@@ -99,12 +111,12 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     
     const newIssue: Issue = {
       id: Math.random().toString(36).substring(7),
-      awb: formState.awb!,
-      partnerName: formState.partnerName || '',
-      issueType: formState.issueType!,
-      opcode: formState.opcode || '',
+      awb: (formState.awb || '').toUpperCase(), // Force Uppercase
+      partnerName: toTitleCase(formState.partnerName || ''), // Force Title Case
+      issueType: toTitleCase(formState.issueType!), // Force Title Case
+      opcode: (formState.opcode || '').toUpperCase(),
       sopRelated: formState.sopRelated || '',
-      chronology: formState.chronology || '',
+      chronology: toSentenceCase(formState.chronology || ''), // Force Sentence Case
       division: formState.division || Division.OPS,
       status: IssueStatus.OPEN,
       createdAt: new Date().toISOString(),
@@ -125,20 +137,20 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/50 px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-neu-flat transition-all active:scale-95"
+          className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-glow transition-all active:scale-95"
         >
           <Plus size={18} /> <span className="font-bold">Report Issue</span>
         </button>
       </header>
 
       {/* Filters */}
-      <div className="bg-bg-card p-4 rounded-2xl shadow-neu-flat border border-slate-800 flex flex-col md:flex-row gap-4">
+      <div className="glass-panel p-4 rounded-2xl flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
           <input 
             type="text" 
             placeholder="Search AWB, Partner, Issue..." 
-            className="w-full pl-12 pr-4 py-3 bg-bg-main rounded-xl text-white shadow-neu-pressed outline-none focus:ring-1 focus:ring-neon placeholder-gray-600"
+            className="w-full pl-12 pr-4 py-3 bg-black rounded-xl text-white border border-white/10 outline-none focus:ring-1 focus:ring-white placeholder-gray-600"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -151,8 +163,8 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
               onClick={() => setFilterStatus(status)}
               className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${
                 filterStatus === status 
-                  ? 'bg-neon text-white border-neon shadow-neon' 
-                  : 'bg-bg-main text-gray-500 border-slate-700 hover:text-white'
+                  ? 'bg-white text-black border-white shadow-glow' 
+                  : 'bg-black text-gray-500 border-white/10 hover:text-white'
               }`}
             >
               {status}
@@ -162,10 +174,10 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
       </div>
 
       {/* Table View */}
-      <div className="bg-bg-card rounded-2xl shadow-neu-flat border border-slate-800 overflow-hidden">
+      <div className="glass-panel rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead className="bg-bg-main text-gray-400 text-[10px] uppercase tracking-wider border-b border-slate-800">
+            <thead className="bg-zinc-900/50 text-gray-400 text-[10px] uppercase tracking-wider border-b border-white/10">
               <tr>
                 <th className="px-6 py-4 font-bold">Status / SLA</th>
                 <th className="px-6 py-4 font-bold">AWB / Partner</th>
@@ -175,11 +187,11 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                 <th className="px-6 py-4 font-bold">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-white/5">
               {filteredIssues.map(issue => {
                 const sla = getSlaStatus(issue.createdAt, issue.status);
                 return (
-                  <tr key={issue.id} className="hover:bg-slate-800/50 transition-colors group">
+                  <tr key={issue.id} className="hover:bg-white/5 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col items-start gap-2">
                         <span className={`px-2 py-1 rounded text-[10px] font-bold border ${
@@ -195,7 +207,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-white font-mono">{issue.awb}</div>
-                      <div className="text-xs font-bold text-neon mt-1">{issue.partnerName}</div>
+                      <div className="text-xs font-bold text-zinc-300 mt-1">{issue.partnerName}</div>
                       {issue.opcode && <div className="text-[10px] text-gray-500 font-normal mt-1">Op: {issue.opcode}</div>}
                     </td>
                     <td className="px-6 py-4">
@@ -212,7 +224,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                       {issue.status !== IssueStatus.DONE && (
                          <button 
                            onClick={() => onSaveIssue({...issue, status: IssueStatus.DONE})}
-                           className="text-neon hover:text-white hover:bg-neon/20 px-3 py-1.5 rounded-lg text-xs font-bold border border-neon/30 transition-colors"
+                           className="text-white hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold border border-white/30 transition-colors"
                          >
                            Resolve
                          </button>
@@ -228,14 +240,14 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-bg-card border border-slate-700 rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto animate-scale-up">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto animate-scale-up border border-white/10">
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-white/10 pb-4">
               <AlertTriangle className="text-red-500" /> Report Issue
             </h3>
 
              {/* AI AutoFill */}
-             <div className="bg-bg-main p-4 rounded-xl shadow-neu-pressed mb-6">
+             <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/10 mb-6">
                <div className="flex gap-3">
                   <textarea
                     className="flex-1 bg-transparent text-white text-sm outline-none placeholder-gray-600 h-12 resize-none"
@@ -254,7 +266,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                  <div>
                     <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">AWB</label>
                     <input 
-                      className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
+                      className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm uppercase"
                       value={formState.awb}
                       onChange={e => setFormState({...formState, awb: e.target.value})}
                       placeholder="1000..."
@@ -263,7 +275,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                  <div>
                     <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Opcode</label>
                     <input 
-                      className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
+                      className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm uppercase"
                       value={formState.opcode}
                       onChange={e => setFormState({...formState, opcode: e.target.value})}
                     />
@@ -273,7 +285,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
               <div>
                 <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Partner Name</label>
                 <input 
-                  className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
+                  className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm capitalize"
                   value={formState.partnerName}
                   onChange={e => setFormState({...formState, partnerName: e.target.value})}
                 />
@@ -282,7 +294,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
               <div>
                 <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Issue Type</label>
                 <input 
-                  className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
+                  className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm capitalize"
                   placeholder="e.g. Wrong Routing"
                   value={formState.issueType}
                   onChange={e => setFormState({...formState, issueType: e.target.value})}
@@ -295,7 +307,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                   <AIButton onClick={handleClassify} loading={classifying} label="Classify" size="sm" variant="secondary" icon={BrainCircuit} />
                 </div>
                 <textarea 
-                  className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm h-24 resize-none"
+                  className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm h-24 resize-none"
                   value={formState.chronology}
                   onChange={e => setFormState({...formState, chronology: e.target.value})}
                   placeholder="Describe what happened..."
@@ -307,7 +319,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                   <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Division</label>
                   <div className="relative">
                     <select 
-                        className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm appearance-none"
+                        className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm appearance-none"
                         value={formState.division}
                         onChange={e => setFormState({...formState, division: e.target.value as Division})}
                     >
@@ -318,7 +330,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                 <div>
                   <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">SOP Ref</label>
                    <input 
-                      className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none text-sm"
+                      className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm"
                       placeholder="e.g. 287"
                       value={formState.sopRelated}
                       onChange={e => setFormState({...formState, sopRelated: e.target.value})}
@@ -335,7 +347,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                 </button>
                 <button 
                   onClick={handleCreate}
-                  className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all"
+                  className="flex-1 py-3 bg-white text-black rounded-xl font-bold hover:bg-zinc-200 shadow-glow transition-all"
                 >
                   Submit Report
                 </button>

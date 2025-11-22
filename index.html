@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Business Ecosystem</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
     <script>
@@ -17,25 +17,20 @@
               sans: ['Inter', 'sans-serif'],
             },
             colors: {
-              bg: {
-                main: '#0F172A',   // Deep Void
-                card: '#1E293B',   // Dark Slate Surface
-                input: '#020617',  // Darker for inputs
-              },
-              neon: {
-                DEFAULT: '#6A8F73', // The Request
-                glow: 'rgba(106, 143, 115, 0.5)',
-                hover: '#55725C',
-              },
-              text: {
-                primary: '#F1F5F9',
-                secondary: '#94A3B8',
-              }
+              background: '#000000',
+              surface: '#09090b', // Zinc 950
+              surfaceHighlight: '#18181b', // Zinc 900
+              border: '#27272a', // Zinc 800
+              primary: '#FFFFFF',
+              secondary: '#A1A1AA', // Zinc 400
             },
             boxShadow: {
-              'neu-flat': '4px 4px 10px #0f172a, -4px -4px 10px #2d3b55',
-              'neu-pressed': 'inset 4px 4px 10px #0f172a, inset -4px -4px 10px #2d3b55',
-              'neon': '0 0 10px rgba(106, 143, 115, 0.5)',
+              'glass': '0 0 0 1px rgba(255,255,255,0.08), 0 4px 20px -2px rgba(0,0,0,0.5)',
+              'glow': '0 0 20px -5px rgba(255,255,255,0.3)',
+            },
+            backgroundImage: {
+              'gradient-obsidian': 'linear-gradient(to bottom right, #18181b, #09090b)',
+              'gradient-primary': 'linear-gradient(to bottom, #ffffff, #d4d4d8)',
             }
           },
         },
@@ -44,22 +39,32 @@
     <style>
       body { 
         font-family: 'Inter', sans-serif; 
-        background-color: #0F172A; 
-        color: #F1F5F9;
+        background-color: #000000; 
+        color: #fafafa;
+        -webkit-font-smoothing: antialiased;
       }
       
-      /* Custom Dark Scrollbar */
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #0F172A; }
-      ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: #6A8F73; }
+      /* Ultra Thin Scrollbar */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: #000000; }
+      ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
-      .animate-glow {
-        animation: glow 2s infinite alternate;
+      .glass-panel {
+        background: rgba(9, 9, 11, 0.6);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
       }
-      @keyframes glow {
-        from { box-shadow: 0 0 5px #6A8F7330; }
-        to { box-shadow: 0 0 20px #6A8F7360; }
+      
+      input, select, textarea {
+        background: #000000 !important;
+        border: 1px solid #27272a !important;
+        transition: border-color 0.2s;
+      }
+      input:focus, select:focus, textarea:focus {
+        border-color: #52525b !important;
+        outline: none;
+        box-shadow: 0 0 0 1px #52525b;
       }
     </style>
   <script type="importmap">

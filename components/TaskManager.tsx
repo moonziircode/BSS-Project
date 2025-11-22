@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Task, TaskCategory, Priority, Division, TaskStatus } from '../types';
-import { Plus, Calendar, Trash2, CheckCircle, ArrowRight, Bot } from 'lucide-react';
+import { Plus, Calendar, Trash2, CheckCircle, ArrowRight, Bot, Circle, CheckCircle2 } from 'lucide-react';
 import { useAIPriority, useAIAutoFillTask } from '../services/ai/aiHooks';
 import { AIButton } from './AI/AIButtons';
 
@@ -27,6 +27,18 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
     notes: '',
     priority: Priority.P3
   });
+
+  // --- Formatting Helpers ---
+  const toTitleCase = (str: string) => {
+    return str.replace(/\w\S*/g, (txt) => {
+      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    });
+  };
+
+  const toSentenceCase = (str: string) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
 
   const handleAutoFill = async () => {
     if (!rawInput) return;
@@ -70,8 +82,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
     
     const newTask: Task = {
       id: Math.random().toString(36).substring(7),
-      title: formState.title!,
-      description: formState.description || '',
+      title: toTitleCase(formState.title!),
+      description: toSentenceCase(formState.description || ''),
       category: formState.category || activeCategory,
       priority: formState.priority || Priority.P3,
       status: formState.status || TaskStatus.OPEN,
@@ -89,9 +101,9 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
 
   const getPriorityBadge = (p: Priority) => {
     switch(p) {
-      case Priority.P1: return <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.3)]">P1 - HIGH</span>;
-      case Priority.P2: return <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.3)]">P2 - DEADLINE</span>;
-      default: return <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">P3 - NORMAL</span>;
+      case Priority.P1: return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white text-black border border-white">HIGH</span>;
+      case Priority.P2: return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">DUE</span>;
+      default: return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-500 border border-zinc-800">LOW</span>;
     }
   };
 
@@ -105,30 +117,30 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <header className="flex justify-between items-center mb-8">
+    <div className="h-full flex flex-col max-w-4xl mx-auto">
+      <header className="flex justify-between items-center mb-8 border-b border-white/10 pb-6">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Task Manager</h2>
-          <p className="text-gray-400 text-sm">Manage operations based on urgency.</p>
+          <h2 className="text-2xl font-light text-white tracking-tight">Tasks</h2>
+          <p className="text-zinc-500 text-xs mt-1">Focus on what matters.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-bg-card hover:bg-slate-800 text-neon border border-neon/50 px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-neu-flat transition-all active:scale-95"
+          className="bg-white text-black px-4 py-2 rounded-md text-xs font-medium shadow-glow hover:bg-zinc-200 transition-colors flex items-center gap-2"
         >
-          <Plus size={18} /> <span className="font-bold">New Task</span>
+          <Plus size={14} /> <span>New Task</span>
         </button>
       </header>
 
       {/* Category Tabs */}
-      <div className="flex bg-bg-card p-1.5 rounded-xl shadow-neu-pressed border border-slate-800 mb-8 w-full max-w-md mx-auto md:mx-0">
+      <div className="flex bg-zinc-900 p-1 rounded-lg border border-white/10 mb-8 w-full max-w-md mx-auto md:mx-0">
         {Object.values(TaskCategory).map(cat => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all tracking-wider ${
+            className={`flex-1 py-2 text-[10px] font-semibold uppercase tracking-widest rounded-md transition-all ${
               activeCategory === cat 
-                ? 'bg-neon text-white shadow-neon' 
-                : 'text-gray-500 hover:text-gray-300'
+                ? 'bg-black text-white shadow-sm border border-white/10' 
+                : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
             {cat.replace('_', ' ')}
@@ -137,61 +149,53 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
       </div>
 
       {/* Task List */}
-      <div className="flex-1 overflow-y-auto space-y-4 pb-20 custom-scrollbar pr-2">
+      <div className="flex-1 overflow-y-auto space-y-3 pb-20 custom-scrollbar">
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-20 bg-bg-card/50 rounded-2xl border border-dashed border-slate-700">
-            <div className="text-gray-500 mb-2">No tasks in this category</div>
-            <button onClick={() => setIsModalOpen(true)} className="text-neon font-bold text-sm hover:underline">Create new +</button>
+          <div className="text-center py-20 bg-black/20 rounded-xl border border-dashed border-zinc-800">
+            <div className="text-zinc-600 text-sm mb-2">All clear here.</div>
+            <button onClick={() => setIsModalOpen(true)} className="text-zinc-300 font-medium text-xs hover:underline">Add item +</button>
           </div>
         ) : (
           filteredTasks.map(task => (
             <div 
               key={task.id} 
-              className={`bg-bg-card p-5 rounded-2xl shadow-neu-flat border border-slate-800 transition-all hover:border-neon/30 group ${task.status === TaskStatus.CLOSED ? 'opacity-50 grayscale' : ''}`}
+              className={`glass-panel p-4 rounded-lg transition-all hover:bg-zinc-900/30 group ${task.status === TaskStatus.CLOSED ? 'opacity-40' : ''}`}
             >
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start gap-4">
+                
+                {/* Status Checkbox */}
+                <button 
+                  onClick={() => cycleStatus(task)}
+                  className="mt-1 text-zinc-600 hover:text-white transition-colors"
+                >
+                   {task.status === TaskStatus.CLOSED ? <CheckCircle2 size={20} className="text-zinc-400" /> : <Circle size={20} />}
+                </button>
+
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-1">
                     {getPriorityBadge(task.priority)}
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                      task.status === TaskStatus.CLOSED ? 'text-green-400' :
-                      task.status === TaskStatus.IN_PROGRESS ? 'text-purple-400 animate-pulse' :
-                      'text-gray-500'
-                    }`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                      <ArrowRight size={10} /> {task.division}
+                    <span className="text-[10px] text-zinc-500 flex items-center gap-1 uppercase tracking-wider">
+                       {task.division}
                     </span>
                   </div>
-                  <h3 className={`font-semibold text-lg text-gray-100 ${task.status === TaskStatus.CLOSED ? 'line-through' : ''}`}>
+                  <h3 className={`text-sm font-medium text-zinc-200 ${task.status === TaskStatus.CLOSED ? 'line-through' : ''}`}>
                     {task.title}
                   </h3>
-                  <p className="text-sm text-gray-400 mt-1 line-clamp-2">{task.description}</p>
+                  {task.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-1 font-light">{task.description}</p>}
                   
                   {task.deadline && (
-                    <div className="flex items-center gap-2 mt-4 text-xs text-red-400 font-bold bg-red-500/5 px-2 py-1 rounded inline-flex border border-red-500/10">
-                      <Calendar size={12} /> Deadline: {new Date(task.deadline).toLocaleDateString('id-ID')}
+                    <div className="flex items-center gap-1 mt-2 text-[10px] text-zinc-400 font-medium">
+                      <Calendar size={10} /> {new Date(task.deadline).toLocaleDateString('en-US')}
                     </div>
                   )}
                 </div>
                 
-                <div className="flex flex-col gap-3 ml-4">
-                  <button 
-                    onClick={() => cycleStatus(task)}
-                    className={`p-2.5 rounded-xl transition-all shadow-neu-flat active:shadow-neu-pressed ${task.status === TaskStatus.CLOSED ? 'text-neon bg-bg-main' : 'text-gray-400 bg-bg-main hover:text-neon'}`}
-                    title="Cycle Status"
-                  >
-                    <CheckCircle size={20} />
-                  </button>
-                  <button 
-                    onClick={() => onDeleteTask(task.id)}
-                    className="p-2.5 text-gray-500 hover:text-red-400 bg-bg-main rounded-xl transition-all shadow-neu-flat hover:shadow-neu-pressed opacity-0 group-hover:opacity-100"
-                    title="Delete"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
+                <button 
+                   onClick={() => onDeleteTask(task.id)}
+                   className="text-zinc-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                >
+                   <Trash2 size={14} />
+                </button>
               </div>
             </div>
           ))
@@ -200,68 +204,64 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
 
       {/* New Task Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-bg-card border border-slate-700 rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto animate-scale-up">
-            <h3 className="text-xl font-bold text-white mb-6 border-b border-slate-800 pb-4">New Task</h3>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel rounded-xl shadow-2xl w-full max-w-lg p-6 animate-scale-up">
+            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+               <h3 className="text-lg font-light text-white">Create Task</h3>
+               <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white"><Trash2 size={16}/></button>
+            </div>
             
             {/* AI Helper */}
-            <div className="bg-bg-main p-4 rounded-xl shadow-neu-pressed mb-6">
-              <div className="flex gap-3">
-                 <input 
-                   className="flex-1 bg-transparent text-white text-sm outline-none placeholder-gray-600"
-                   placeholder="Type fast: 'Check SLA Finance tomorrow'"
-                   value={rawInput}
-                   onChange={e => setRawInput(e.target.value)}
-                 />
-                 <AIButton onClick={handleAutoFill} loading={autofillLoading} label="Auto-Fill" size="sm" />
-              </div>
+            <div className="bg-zinc-900/50 p-3 rounded-lg border border-white/10 mb-6 flex gap-2">
+                <input 
+                  className="flex-1 bg-transparent text-white text-xs outline-none placeholder-zinc-600"
+                  placeholder="AI Auto-fill: 'Check SLA Finance tomorrow'"
+                  value={rawInput}
+                  onChange={e => setRawInput(e.target.value)}
+                />
+                <AIButton onClick={handleAutoFill} loading={autofillLoading} label="Auto" size="sm" />
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Task Title</label>
                 <input 
                   type="text" 
-                  className="w-full bg-bg-main border-none rounded-xl p-3 text-white shadow-neu-pressed focus:ring-1 focus:ring-neon outline-none transition-all"
-                  placeholder="e.g. Handling Complaint X"
+                  className="w-full bg-black border border-white/10 rounded-md p-3 text-sm text-white focus:ring-1 focus:ring-white transition-all placeholder-zinc-600 capitalize"
+                  placeholder="Task Title"
                   value={formState.title}
                   onChange={e => setFormState({...formState, title: e.target.value})}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Description</label>
                 <textarea 
-                  className="w-full bg-bg-main border-none rounded-xl p-3 text-white shadow-neu-pressed focus:ring-1 focus:ring-neon outline-none h-28 resize-none"
-                  placeholder="Task details..."
+                  className="w-full bg-black border border-white/10 rounded-md p-3 text-sm text-white focus:ring-1 focus:ring-white transition-all placeholder-zinc-600 h-24 resize-none"
+                  placeholder="Description..."
                   value={formState.description}
                   onChange={e => setFormState({...formState, description: e.target.value})}
                 />
-                <div className="mt-3 flex justify-end">
-                   <AIButton onClick={handleSmartPriority} loading={priorityLoading} label="AI Prioritize" size="sm" variant="secondary" icon={Bot} />
+                <div className="mt-2 flex justify-end">
+                   <AIButton onClick={handleSmartPriority} loading={priorityLoading} label="Suggest Priority" size="sm" variant="secondary" icon={Bot} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Priority</label>
-                  <div className="relative">
+                <div className="relative">
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Priority</label>
                     <select 
-                      className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none appearance-none"
+                      className="w-full bg-black text-white rounded-md p-2 border border-white/10 text-xs"
                       value={formState.priority}
                       onChange={e => setFormState({...formState, priority: e.target.value as Priority})}
                     >
-                      <option value={Priority.P1}>P1 - High Impact</option>
-                      <option value={Priority.P2}>P2 - Deadline</option>
-                      <option value={Priority.P3}>P3 - Normal</option>
+                      <option value={Priority.P1}>High Impact</option>
+                      <option value={Priority.P2}>Deadline</option>
+                      <option value={Priority.P3}>Normal</option>
                     </select>
-                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Division</label>
-                  <div className="relative">
-                    <select 
-                      className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none appearance-none"
+                  <label className="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Division</label>
+                  <select 
+                      className="w-full bg-black text-white rounded-md p-2 border border-white/10 text-xs"
                       value={formState.division}
                       onChange={e => setFormState({...formState, division: e.target.value as Division})}
                     >
@@ -269,31 +269,30 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, onSaveTask, onDeleteTa
                         <option key={d} value={d}>{d}</option>
                       ))}
                     </select>
-                  </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Deadline</label>
+                <label className="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Deadline</label>
                 <input 
                   type="date"
-                  className="w-full bg-bg-main text-white rounded-xl p-3 shadow-neu-pressed outline-none"
+                  className="w-full bg-black text-white rounded-md p-2 border border-white/10 text-xs"
                   value={formState.deadline || ''}
                   onChange={e => setFormState({...formState, deadline: e.target.value})}
                 />
               </div>
 
-              <div className="flex gap-4 pt-6">
+              <div className="flex gap-3 pt-6">
                 <button 
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-3 rounded-xl text-gray-400 font-bold hover:text-white transition-colors"
+                  className="flex-1 py-2.5 rounded-md text-zinc-400 font-medium hover:text-white transition-colors text-xs border border-transparent hover:border-zinc-700"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={handleCreate}
                   disabled={!formState.title}
-                  className="flex-1 py-3 bg-neon text-white rounded-xl font-bold shadow-neon hover:bg-neon-hover transition-all disabled:opacity-50 disabled:shadow-none"
+                  className="flex-1 py-2.5 bg-white text-black rounded-md font-bold hover:bg-zinc-200 transition-all disabled:opacity-50 text-xs shadow-glow"
                 >
                   Save Task
                 </button>
