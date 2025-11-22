@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Partner } from '../types';
-import { Users, TrendingUp, AlertCircle, Minus, Map as MapIcon, Plus, Trash2, Sparkles } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Cell } from 'recharts';
+import { Plus, Trash2, Sparkles, Download, MapPin, Navigation, Edit } from 'lucide-react';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { useAIPartnerAnalysis } from '../services/ai/aiHooks';
 import { AIButton } from './AI/AIButtons';
+import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 
 interface PartnerManagerProps {
   partners: Partner[];
@@ -12,10 +13,124 @@ interface PartnerManagerProps {
   onDeletePartner: (id: string) => void;
 }
 
+// --- MAP CONFIGURATION ---
+const containerStyle = {
+  width: '100%',
+  height: '500px',
+  borderRadius: '0.75rem',
+};
+
+// Default Center (Jakarta) - adjust if needed
+const defaultCenter = {
+  lat: -6.200000,
+  lng: 106.816666
+};
+
+// Dark Mode / Obsidian Map Style
+const mapOptions = {
+  disableDefaultUI: false,
+  zoomControl: true,
+  mapTypeControl: false,
+  streetViewControl: false,
+  styles: [
+    { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+    {
+      featureType: "administrative.locality",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#d59563" }],
+    },
+    {
+      featureType: "poi",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#d59563" }],
+    },
+    {
+      featureType: "poi.park",
+      elementType: "geometry",
+      stylers: [{ color: "#263c3f" }],
+    },
+    {
+      featureType: "poi.park",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#6b9a76" }],
+    },
+    {
+      featureType: "road",
+      elementType: "geometry",
+      stylers: [{ color: "#38414e" }],
+    },
+    {
+      featureType: "road",
+      elementType: "geometry.stroke",
+      stylers: [{ color: "#212a37" }],
+    },
+    {
+      featureType: "road",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#9ca5b3" }],
+    },
+    {
+      featureType: "road.highway",
+      elementType: "geometry",
+      stylers: [{ color: "#746855" }],
+    },
+    {
+      featureType: "road.highway",
+      elementType: "geometry.stroke",
+      stylers: [{ color: "#1f2835" }],
+    },
+    {
+      featureType: "road.highway",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#f3d19c" }],
+    },
+    {
+      featureType: "water",
+      elementType: "geometry",
+      stylers: [{ color: "#17263c" }],
+    },
+    {
+      featureType: "water",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#515c6d" }],
+    },
+    {
+      featureType: "water",
+      elementType: "labels.text.stroke",
+      stylers: [{ color: "#17263c" }],
+    },
+  ],
+};
+
+// --- HELPERS ---
+
+// 1. Parse "lat, lng" string to object
+const parseCoordinates = (coordString: string) => {
+  if (!coordString) return null;
+  const parts = coordString.split(',').map(s => parseFloat(s.trim()));
+  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+  return { lat: parts[0], lng: parts[1] };
+};
+
+// 2. Get Marker Color based on Status
+const getMarkerIcon = (status: string) => {
+  // Using standard Google colored pins for simplicity and reliability
+  switch (status) {
+    case 'GROWTH': return "https://maps.google.com/mapfiles/ms/icons/green-dot.png";
+    case 'AT_RISK': return "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
+    default: return "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
+  }
+};
+
 const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner, onDeletePartner }) => {
   const [activeTab, setActiveTab] = useState<'LIST' | 'MAP'>('LIST');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Map State
+  const [activeMarker, setActiveMarker] = useState<string | null>(null);
   
   // AI Hook
   const { run: runAnalysis, loading: analyzing } = useAIPartnerAnalysis();
@@ -73,12 +188,33 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
       setEditingId(p.id);
       setFormState(p);
       setIsModalOpen(true);
+      setActiveMarker(null); // Close InfoWindow if open
   };
   
   const handleAnalyze = async (e: React.MouseEvent, p: Partner) => {
       e.stopPropagation();
       const insight = await runAnalysis(p);
       if (insight) alert(`🤖 AI Business Insight untuk ${p.name}:\n\n${insight}`);
+  };
+
+  // Export to CSV for Google My Maps
+  const handleExportCSV = () => {
+    const headers = ['Name,Latitude,Longitude,Status,Volume,Description'];
+    const rows = partners.map(p => {
+       const coords = parseCoordinates(p.coordinates);
+       const lat = coords ? coords.lat : 0;
+       const lng = coords ? coords.lng : 0;
+       return `"${p.name}",${lat},${lng},${p.status},${p.volumeM1},"${p.ownerName} - ${p.phone}"`;
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "anteraja_partners_ecosystem.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const renderTrend = (p: Partner) => {
@@ -98,19 +234,17 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
       );
   };
 
-  const mapData = partners.map(p => {
-      const [lat, long] = p.coordinates.split(',').map(s => parseFloat(s.trim()));
-      return { ...p, x: long || 0, y: lat || 0, z: p.volumeM1 };
-  }).filter(p => p.x !== 0);
-
   return (
     <div className="space-y-6">
-       <header className="flex justify-between items-center border-b border-white/10 pb-6">
+       <header className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-white/10 pb-6">
           <div>
              <h2 className="text-3xl font-light text-white tracking-tight">Partners</h2>
              <p className="text-zinc-500 text-xs mt-1">Ecosystem Health Monitor</p>
           </div>
           <div className="flex gap-2">
+            <button onClick={handleExportCSV} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 hover:text-white hover:border-zinc-600">
+                <Download size={14}/> CSV
+            </button>
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-1 flex">
                 <button onClick={() => setActiveTab('LIST')} className={`px-3 py-1.5 text-xs font-medium rounded ${activeTab === 'LIST' ? 'bg-white text-black' : 'text-zinc-500'}`}>List</button>
                 <button onClick={() => setActiveTab('MAP')} className={`px-3 py-1.5 text-xs font-medium rounded ${activeTab === 'MAP' ? 'bg-white text-black' : 'text-zinc-500'}`}>Map</button>
@@ -179,43 +313,65 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
        )}
 
        {activeTab === 'MAP' && (
-           <div className="glass-panel p-4 rounded-xl h-[500px] relative">
-               <h3 className="absolute top-4 left-4 text-xs font-bold bg-black/50 px-2 py-1 rounded text-zinc-400 z-10">Geo-Spatial Distribution</h3>
-               {mapData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                        <XAxis type="number" dataKey="x" name="Longitude" domain={['auto', 'auto']} tick={{fontSize: 10}} hide />
-                        <YAxis type="number" dataKey="y" name="Latitude" domain={['auto', 'auto']} tick={{fontSize: 10}} hide />
-                        <ZAxis type="number" dataKey="z" range={[50, 400]} name="Volume" />
-                        <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({payload}) => {
-                            if (payload && payload[0]) {
-                                const d = payload[0].payload;
-                                return (
-                                    <div className="bg-black border border-zinc-700 p-2 rounded text-xs text-white">
-                                        <p className="font-bold">{d.name}</p>
-                                        <p>Vol: {d.volumeM1}</p>
-                                    </div>
-                                )
-                            }
-                            return null;
-                        }} />
-                        <Scatter name="Partners" data={mapData} fill="#8884d8">
-                            {mapData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.status === 'GROWTH' ? '#10b981' : entry.status === 'AT_RISK' ? '#ef4444' : '#71717a'} />
-                            ))}
-                        </Scatter>
-                    </ScatterChart>
-                </ResponsiveContainer>
-               ) : (
-                   <div className="flex items-center justify-center h-full text-zinc-500 text-xs">Add coordinates (lat,long) to partners to see map</div>
-               )}
+           <div className="glass-panel p-1 rounded-xl overflow-hidden border border-white/10">
+               <LoadScript googleMapsApiKey="AIzaSyBNuH9od-jt15CJ5skLrhZ7VqUUyrPedLU">
+                  <GoogleMap
+                    mapContainerStyle={containerStyle}
+                    center={defaultCenter}
+                    zoom={11}
+                    options={mapOptions}
+                  >
+                    {partners.map(p => {
+                        const coords = parseCoordinates(p.coordinates);
+                        if (!coords) return null;
+                        
+                        return (
+                            <Marker
+                                key={p.id}
+                                position={coords}
+                                icon={getMarkerIcon(p.status)}
+                                onClick={() => setActiveMarker(p.id)}
+                            >
+                                {activeMarker === p.id && (
+                                    <InfoWindow 
+                                        position={coords} 
+                                        onCloseClick={() => setActiveMarker(null)}
+                                        options={{ pixelOffset: new (window as any).google.maps.Size(0, -30) }}
+                                    >
+                                        <div className="p-2 text-black max-w-[200px]">
+                                            <h3 className="font-bold text-sm">{p.name}</h3>
+                                            <p className="text-xs text-gray-600 mb-2">{p.ownerName} • Vol: {p.volumeM1}</p>
+                                            <div className="flex gap-2 mt-2">
+                                                <button 
+                                                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`, '_blank')}
+                                                  className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 flex-1 flex items-center justify-center gap-1 text-[10px]"
+                                                  title="Navigate"
+                                                >
+                                                    <Navigation size={12}/> Nav
+                                                </button>
+                                                <button 
+                                                  onClick={() => openEdit(p)}
+                                                  className="bg-gray-200 text-gray-800 p-1.5 rounded hover:bg-gray-300 flex-1 flex items-center justify-center gap-1 text-[10px]"
+                                                  title="Edit"
+                                                >
+                                                    <Edit size={12}/> Edit
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </InfoWindow>
+                                )}
+                            </Marker>
+                        );
+                    })}
+                  </GoogleMap>
+               </LoadScript>
            </div>
        )}
 
        {/* Modal */}
        {isModalOpen && (
            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-               <div className="glass-panel w-full max-w-lg p-6 rounded-xl shadow-2xl border border-white/10">
+               <div className="glass-panel w-full max-w-lg p-6 rounded-xl shadow-2xl border border-white/10 animate-scale-up">
                   <h3 className="text-lg font-bold text-white mb-4">{editingId ? 'Edit Partner' : 'New Partner'}</h3>
                   <div className="space-y-4">
                       <div>
@@ -234,7 +390,11 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                       </div>
                       <div>
                           <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">Coordinates (Lat, Long)</label>
-                          <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white" placeholder="-6.200, 106.800" value={formState.coordinates} onChange={e => setFormState({...formState, coordinates: e.target.value})} />
+                          <div className="relative">
+                            <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white" placeholder="-6.200, 106.800" value={formState.coordinates} onChange={e => setFormState({...formState, coordinates: e.target.value})} />
+                            <MapPin size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"/>
+                          </div>
+                          <p className="text-[9px] text-zinc-600 mt-1">Required for map placement.</p>
                       </div>
                       
                       <div className="bg-zinc-900/50 p-3 rounded border border-white/10">

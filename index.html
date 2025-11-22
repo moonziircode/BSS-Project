@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id" class="dark">
   <head>
@@ -17,26 +18,88 @@
               sans: ['Inter', 'sans-serif'],
             },
             colors: {
-              background: '#000000',
-              surface: '#09090b', // Zinc 950
-              surfaceHighlight: '#18181b', // Zinc 900
-              border: '#27272a', // Zinc 800
-              primary: '#FFFFFF',
-              secondary: '#A1A1AA', // Zinc 400
+              background: 'hsl(var(--background))',
+              foreground: 'hsl(var(--foreground))',
+              card: 'hsl(var(--card))',
+              'card-foreground': 'hsl(var(--card-foreground))',
+              popover: 'hsl(var(--popover))',
+              'popover-foreground': 'hsl(var(--popover-foreground))',
+              primary: 'hsl(var(--primary))',
+              'primary-foreground': 'hsl(var(--primary-foreground))',
+              secondary: 'hsl(var(--secondary))',
+              'secondary-foreground': 'hsl(var(--secondary-foreground))',
+              muted: 'hsl(var(--muted))',
+              'muted-foreground': 'hsl(var(--muted-foreground))',
+              accent: 'hsl(var(--accent))',
+              'accent-foreground': 'hsl(var(--accent-foreground))',
+              destructive: 'hsl(var(--destructive))',
+              'destructive-foreground': 'hsl(var(--destructive-foreground))',
+              border: 'hsl(var(--border))',
+              input: 'hsl(var(--input))',
+              ring: 'hsl(var(--ring))',
+              neon: '#6A8F73',
+              'neon-hover': '#55725c',
+              'bg-main': '#000000',
+              'bg-card': '#09090b',
             },
             boxShadow: {
               'glass': '0 0 0 1px rgba(255,255,255,0.08), 0 4px 20px -2px rgba(0,0,0,0.5)',
-              'glow': '0 0 20px -5px rgba(255,255,255,0.3)',
+              'glow': '0 0 20px -5px rgba(255,255,255,0.1)',
+              'neu-flat': '4px 4px 10px #050506, -4px -4px 10px #0d0d10',
+              'neu-pressed': 'inset 4px 4px 10px #050506, inset -4px -4px 10px #0d0d10',
             },
             backgroundImage: {
               'gradient-obsidian': 'linear-gradient(to bottom right, #18181b, #09090b)',
               'gradient-primary': 'linear-gradient(to bottom, #ffffff, #d4d4d8)',
+            },
+            keyframes: {
+              'scale-up': {
+                '0%': { transform: 'scale(0.95)', opacity: '0' },
+                '100%': { transform: 'scale(1)', opacity: '1' },
+              },
+              'fade-in-down': {
+                '0%': { transform: 'translateY(-10px)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' },
+              },
+              'slide-up': {
+                '0%': { transform: 'translateY(100%)' },
+                '100%': { transform: 'translateY(0)' },
+              }
+            },
+            animation: {
+              'scale-up': 'scale-up 0.2s ease-out',
+              'fade-in-down': 'fade-in-down 0.3s ease-out',
+              'slide-up': 'slide-up 0.3s ease-out',
             }
           },
         },
       }
     </script>
     <style>
+      @layer base {
+        :root {
+          --background: 0 0% 0%;
+          --foreground: 240 10% 3.9%;
+          --card: 240 10% 3.9%;
+          --card-foreground: 0 0% 98%;
+          --popover: 240 10% 3.9%;
+          --popover-foreground: 0 0% 98%;
+          --primary: 0 0% 98%;
+          --primary-foreground: 240 5.9% 10%;
+          --secondary: 240 3.7% 15.9%;
+          --secondary-foreground: 0 0% 98%;
+          --muted: 240 3.7% 15.9%;
+          --muted-foreground: 240 5% 64.9%;
+          --accent: 240 3.7% 15.9%;
+          --accent-foreground: 0 0% 98%;
+          --destructive: 0 62.8% 30.6%;
+          --destructive-foreground: 0 0% 98%;
+          --border: 240 3.7% 15.9%;
+          --input: 240 3.7% 15.9%;
+          --ring: 240 4.9% 83.9%;
+        }
+      }
+
       body { 
         font-family: 'Inter', sans-serif; 
         background-color: #000000; 
@@ -53,16 +116,21 @@
       .glass-panel {
         background: rgba(9, 9, 11, 0.6);
         backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      /* Custom utility for thin borders */
+      .border-thin {
+        border-width: 0.5px;
       }
       
       input, select, textarea {
-        background: #000000 !important;
-        border: 1px solid #27272a !important;
-        transition: border-color 0.2s;
+        background: #09090b !important; /* Zinc 950 */
+        border: 1px solid #27272a !important; /* Zinc 800 */
+        transition: border-color 0.2s, box-shadow 0.2s;
       }
       input:focus, select:focus, textarea:focus {
-        border-color: #52525b !important;
+        border-color: #52525b !important; /* Zinc 600 */
         outline: none;
         box-shadow: 0 0 0 1px #52525b;
       }
@@ -79,7 +147,8 @@
     "firebase/analytics": "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js",
     "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
     "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "@react-google-maps/api": "https://aistudiocdn.com/@react-google-maps/api@^2.19.2"
   }
 }
 </script>
