@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAIChat } from '../../services/ai/aiHooks';
 import { Send, X, Bot, Loader2, Trash2, StopCircle, CheckCircle2 } from 'lucide-react';
-import { Task, Issue, VisitNote, TaskCategory, Priority, TaskStatus, Division } from '../../types';
+import { Task, Issue, VisitNote, TaskCategory, Priority, TaskStatus, Division, Partner, SOP } from '../../types';
 
 interface AIChatWindowProps {
   isOpen: boolean;
@@ -10,11 +10,13 @@ interface AIChatWindowProps {
   tasks: Task[];
   issues: Issue[];
   visits: VisitNote[];
+  partners?: Partner[];
+  sops?: SOP[];
   onSaveTask?: (task: Task) => void;
   onSaveVisit?: (visit: VisitNote) => void;
 }
 
-const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, issues, visits, onSaveTask, onSaveVisit }) => {
+const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, issues, visits, partners = [], sops = [], onSaveTask, onSaveVisit }) => {
   const { history, loading, send, clear } = useAIChat();
   const [input, setInput] = useState('');
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -34,7 +36,7 @@ const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, tasks, iss
     setInput('');
     setActionFeedback(null);
     
-    const res = await send(msg, { tasks, issues, visits });
+    const res = await send(msg, { tasks, issues, visits, partners, sops });
     
     // Handle Actions if present in AI Response
     if (res && res.action) {

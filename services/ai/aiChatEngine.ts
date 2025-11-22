@@ -1,6 +1,6 @@
 
 import { callAI, MODEL_SMART } from './aiService';
-import { AIChatMessage, AIChatResponse, Task, Issue, VisitNote, TaskCategory, Priority, Division, TaskStatus } from '../../types';
+import { AIChatMessage, AIChatResponse, Task, Issue, VisitNote, Partner, SOP } from '../../types';
 
 const getDateContext = () => {
   const now = new Date();
@@ -29,117 +29,80 @@ const getDateContext = () => {
 
 const SYSTEM_PROMPT = `
 You are "Anteraja Super Assistant", an intelligent operational bot for Business Success Specialists.
-Your capability includes reading the database and **EXECUTING ACTIONS** to modify the database.
+Your capability includes reading the database (Tasks, Issues, Visits, Partners, SOPs) and **EXECUTING ACTIONS**.
 
 ### ROLE & BEHAVIOR
-1.  **Assist & Execute**: If the user asks to create, schedule, or remind, you MUST generate a JSON Action.
-2.  **Data Aware**: You have access to the user's Tasks, Issues, and Visit Plans. Use this to answer questions like "Do I have visits next week?".
+1.  **Assist & Execute**: If asked to create/schedule, return a JSON Action.
+2.  **Data Aware**: You know the Partners' health status and SOP details.
 3.  **Language**: Professional Indonesian.
 
-### HOW TO EXECUTE ACTIONS (CRITICAL)
-When the user wants to create a Task or Visit, do NOT just say "I did it".
-You must return a JSON object with an "action" field containing the data.
+### KNOWLEDGE BASE ACCESS
+- If asked about SOPs (e.g., "How to handle opcode 59?"), READ the SOP section below.
+- If asked about Partners (e.g., "Is Toko A growing?"), READ the Partner section below.
 
+### HOW TO EXECUTE ACTIONS
 #### 1. CREATING A TASK
-Trigger keywords: "Buat tugas", "Ingatkan saya", "Catat task", "Remind me".
-JSON Structure:
-{
-  "reply": "Siap, tugas '[Title]' telah ditambahkan ke daftar [Category].",
-  "suggestedActions": [],
-  "action": {
-    "type": "CREATE_TASK",
-    "data": {
-      "title": "Short & Clear Title",
-      "description": "Full details from user",
-      "category": "TODAY" | "THIS_WEEK" | "WAITING_UPDATE",
-      "priority": "PRIORITY_1" (High/Urgent) | "PRIORITY_2" (Deadline) | "PRIORITY_3" (Normal),
-      "status": "OPEN",
-      "division": "Operations" | "Finance" | "IT" | "Network" | "CS" | "PM",
-      "deadline": "YYYY-MM-DD" (Calculate based on user request, e.g. 'Tomorrow')
-    }
-  }
-}
+Trigger: "Buat tugas", "Ingatkan saya".
+JSON: { "action": { "type": "CREATE_TASK", "data": { ... } } }
 
 #### 2. SCHEDULING A VISIT
-Trigger keywords: "Jadwalkan visit", "Plan visit", "Kunjungan ke".
-JSON Structure:
-{
-  "reply": "Oke, rencana kunjungan ke [Partner] dijadwalkan untuk tanggal [Date].",
-  "suggestedActions": [],
-  "action": {
-    "type": "CREATE_VISIT",
-    "data": {
-      "partnerName": "Partner Name",
-      "visitDatePlan": "YYYY-MM-DD",
-      "status": "PLANNED",
-      "findings": "",
-      "operationalIssues": "",
-      "suggestions": "",
-      "ordersLastMonth": 0,
-      "ordersDailyAvg": 0,
-      "googleMapsLink": "",
-      "coordinates": ""
-    }
-  }
-}
+Trigger: "Jadwalkan visit", "Plan visit".
+JSON: { "action": { "type": "CREATE_VISIT", "data": { ... } } }
 
 ### RESPONSE FORMAT
-Always return a valid JSON object.
-If no action is needed, return:
-{
-  "reply": "Your answer here...",
-  "suggestedActions": ["Suggestion 1", "Suggestion 2"]
-}
+Return JSON with "reply", "suggestedActions", and optional "action".
 `;
 
-const formatContext = (tasks: Task[], issues: Issue[], visits: VisitNote[]) => {
-  // Sort visits by date to help AI understand the timeline
+const formatContext = (tasks: Task[], issues: Issue[], visits: VisitNote[], partners: Partner[], sops: SOP[]) => {
   const sortedVisits = [...visits]
-    .filter(v => v.status !== 'DONE') // Only future/planned
+    .filter(v => v.status !== 'DONE')
     .sort((a, b) => (a.visitDatePlan || '9999').localeCompare(b.visitDatePlan || '9999'));
 
   const sortedTasks = [...tasks]
     .filter(t => t.status !== 'CLOSED')
     .sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
 
-  const taskSummary = sortedTasks.length > 0 
-    ? sortedTasks.map(t => `- [${t.deadline || 'No Date'}] ${t.title} (${t.priority})`).join('\n')
-    : 'No active tasks.';
-
-  const issueSummary = issues.length > 0
-    ? issues.filter(i => i.status !== 'DONE').map(i => `- ${i.awb} (${i.partnerName}): ${i.issueType}`).join('\n')
-    : 'No open issues.';
-
-  const visitSummary = sortedVisits.length > 0
-    ? sortedVisits.map(v => `- [${v.visitDatePlan || 'Unscheduled'}] Visit ke ${v.partnerName}`).join('\n')
-    : 'No planned visits.';
+  const partnerSummary = partners.map(p => `- ${p.name} (${p.status}): Vol ${p.volumeM1}`).join('\n');
+  const sopSummary = sops.map(s => `- ${s.title} [${s.category}]`).join('\n');
 
   return `
     ${getDateContext()}
 
     === DATABASE CONTENTS (READ ONLY) ===
     
-    [ACTIVE TASKS & DEADLINES]
-    ${taskSummary}
+    [ACTIVE TASKS]
+    ${sortedTasks.map(t => `- [${t.deadline}] ${t.title}`).join('\n')}
 
-    [OPEN ISSUES / SLA]
-    ${issueSummary}
+    [OPEN ISSUES]
+    ${issues.filter(i => i.status !== 'DONE').map(i => `- ${i.awb}: ${i.issueType}`).join('\n')}
 
-    [FUTURE VISIT PLANS]
-    ${visitSummary}
+    [PLANNED VISITS]
+    ${sortedVisits.map(v => `- [${v.visitDatePlan}] ${v.partnerName}`).join('\n')}
+
+    [PARTNER STATUS]
+    ${partnerSummary}
+
+    [AVAILABLE SOPs]
+    ${sopSummary}
   `;
 };
 
 export const sendMessage = async (
   history: AIChatMessage[], 
   userMessage: string,
-  contextData?: { tasks: Task[], issues: Issue[], visits: VisitNote[] }
+  contextData?: { tasks: Task[], issues: Issue[], visits: VisitNote[], partners: Partner[], sops: SOP[] }
 ): Promise<AIChatResponse> => {
   
   let systemContent = SYSTEM_PROMPT;
   
   if (contextData) {
-    const contextString = formatContext(contextData.tasks, contextData.issues, contextData.visits);
+    const contextString = formatContext(
+        contextData.tasks, 
+        contextData.issues, 
+        contextData.visits,
+        contextData.partners,
+        contextData.sops
+    );
     systemContent += `\n\n${contextString}`;
   }
 

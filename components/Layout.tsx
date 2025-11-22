@@ -1,5 +1,6 @@
+
 import React, { ReactNode } from 'react';
-import { LayoutDashboard, ListTodo, AlertTriangle, MapPin, Menu, Database, Settings, Box, Flame } from 'lucide-react';
+import { LayoutDashboard, ListTodo, AlertTriangle, MapPin, Menu, Database, Settings, Box, Flame, Users, BookOpen } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,8 +16,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isCo
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { id: 'tasks', label: 'Task Manager', icon: <ListTodo size={18} /> },
+    { id: 'partners', label: 'Partners', icon: <Users size={18} /> }, // New
     { id: 'issues', label: 'Issue Tracker', icon: <AlertTriangle size={18} /> },
     { id: 'visits', label: 'Visit Notes', icon: <MapPin size={18} /> },
+    { id: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={18} /> }, // New
   ];
 
   return (

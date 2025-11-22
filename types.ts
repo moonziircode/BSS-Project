@@ -48,40 +48,83 @@ export interface Task {
   notes: string;
 }
 
+export interface EscalationLog {
+  id: string;
+  timestamp: string;
+  actor: string; // e.g. "You", "Pak Budi"
+  action: string; // e.g. "Sent Email", "WhatsApp Call"
+  note: string;
+}
+
 export interface Issue {
   id: string;
   awb: string;
-  partnerName: string; // New Field
+  partnerName: string;
   issueType: string;
   opcode: string;
   sopRelated: string;
   chronology: string;
   division: Division;
   status: IssueStatus;
-  createdAt: string; // ISO Date for SLA calculation
+  createdAt: string;
   screenshotUrl?: string;
+  escalationLog?: EscalationLog[]; // New Field
 }
 
 export interface VisitNote {
   id: string;
   partnerName: string;
-  // Removed NIA
-  googleMapsLink: string; // New
-  coordinates: string; // New
-  visitDatePlan: string; // New
-  visitDateActual: string; // New
-  ordersLastMonth: number; // New
-  ordersDailyAvg: number; // New
+  googleMapsLink: string;
+  coordinates: string;
+  visitDatePlan: string;
+  visitDateActual: string;
+  ordersLastMonth: number;
+  ordersDailyAvg: number;
   findings: string;
   operationalIssues: string;
   suggestions: string;
-  summary?: string; // AI Generated
-  status: VisitStatus; // New Field
+  summary?: string;
+  status: VisitStatus;
+}
+
+// --- New Data Models ---
+
+export interface Partner {
+  id: string;
+  name: string;
+  ownerName: string;
+  phone: string;
+  address: string;
+  coordinates: string; // "lat, long"
+  joinedDate: string;
+  // Historical Volume for Trend Analysis
+  volumeM3: number; // 2 months ago
+  volumeM2: number; // Last month
+  volumeM1: number; // Current Month (to date)
+  status: 'GROWTH' | 'STAGNANT' | 'AT_RISK';
+}
+
+export interface SOP {
+  id: string;
+  title: string;
+  category: string;
+  tags: string[];
+  content: string;
+  lastUpdated: string;
+}
+
+export interface Contact {
+  id: string;
+  name: string;
+  role: string;
+  division: Division;
+  phone: string;
+  email: string;
 }
 
 export interface DashboardStats {
   tasksToday: number;
-  issuesCritical: number; // SLA Breach
+  issuesCritical: number;
   pendingVisits: number;
 }
 

@@ -1,12 +1,15 @@
 
 import { db } from "./firebaseConfig";
 import { collection, doc, setDoc, deleteDoc, onSnapshot, Unsubscribe } from "firebase/firestore";
-import { Task, Issue, VisitNote } from "../types";
+import { Task, Issue, VisitNote, Partner, SOP, Contact } from "../types";
 
 const COLLECTIONS = {
   TASKS: "tasks",
   ISSUES: "issues",
   VISITS: "visits",
+  PARTNERS: "partners",
+  SOPS: "sops",
+  CONTACTS: "contacts"
 };
 
 // Helper to remove undefined fields because Firestore setDoc crashes on them
@@ -41,6 +44,27 @@ export const firebaseService = {
       callback(visits);
     }, (error) => {
       console.error("Error listening to visits:", error);
+    });
+  },
+
+  subscribeToPartners: (callback: (partners: Partner[]) => void): Unsubscribe => {
+    return onSnapshot(collection(db, COLLECTIONS.PARTNERS), (snapshot) => {
+      const data = snapshot.docs.map((doc) => doc.data() as Partner);
+      callback(data);
+    });
+  },
+
+  subscribeToSOPs: (callback: (sops: SOP[]) => void): Unsubscribe => {
+    return onSnapshot(collection(db, COLLECTIONS.SOPS), (snapshot) => {
+      const data = snapshot.docs.map((doc) => doc.data() as SOP);
+      callback(data);
+    });
+  },
+
+  subscribeToContacts: (callback: (contacts: Contact[]) => void): Unsubscribe => {
+    return onSnapshot(collection(db, COLLECTIONS.CONTACTS), (snapshot) => {
+      const data = snapshot.docs.map((doc) => doc.data() as Contact);
+      callback(data);
     });
   },
 
@@ -84,5 +108,29 @@ export const firebaseService = {
     } catch (error) {
       console.error("Error deleting visit:", error);
     }
+  },
+
+  savePartner: async (partner: Partner): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.PARTNERS, partner.id), cleanData(partner));
+  },
+
+  deletePartner: async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, COLLECTIONS.PARTNERS, id));
+  },
+
+  saveSOP: async (sop: SOP): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.SOPS, sop.id), cleanData(sop));
+  },
+
+  deleteSOP: async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, COLLECTIONS.SOPS, id));
+  },
+
+  saveContact: async (contact: Contact): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.CONTACTS, contact.id), cleanData(contact));
+  },
+
+  deleteContact: async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, COLLECTIONS.CONTACTS, id));
   },
 };

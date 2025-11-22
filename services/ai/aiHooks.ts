@@ -4,7 +4,7 @@ import { classifyIssue, autoFillIssueForm } from './aiClassifiers';
 import { summarizeVisit, autoFillVisitForm } from './aiSummaries';
 import { getSolutionSuggestion, getOperationalImprovement, getPriorityScore, autoFillTask } from './aiSuggestions';
 import { sendMessage } from './aiChatEngine';
-import { AIChatMessage, Task, Issue, VisitNote } from '../../types';
+import { AIChatMessage, Task, Issue, VisitNote, Partner, SOP } from '../../types';
 
 // Generic Hook Factory
 function useAI<T, A extends any[]>(aiFunction: (...args: A) => Promise<T>) {
@@ -51,7 +51,7 @@ export const useAIChat = () => {
   
   const send = async (
     msg: string, 
-    contextData?: { tasks: Task[], issues: Issue[], visits: VisitNote[] }
+    contextData?: { tasks: Task[], issues: Issue[], visits: VisitNote[], partners: Partner[], sops: SOP[] }
   ) => {
     setLoading(true);
     const newHistory = [...history, { role: 'user' as const, content: msg }];

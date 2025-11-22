@@ -5,10 +5,13 @@ import Dashboard from './components/Dashboard';
 import TaskManager from './components/TaskManager';
 import IssueTracker from './components/IssueTracker';
 import VisitNotes from './components/VisitNotes';
+import PartnerManager from './components/PartnerManager';
+import KnowledgeBase from './components/KnowledgeBase';
 import ChecklistModal from './components/ChecklistModal';
 import { firebaseService } from './services/firebaseService';
-import { Task, Issue, VisitNote } from './types';
+import { Task, Issue, VisitNote, Partner, SOP, Contact } from './types';
 import { Database, X, Loader2 } from 'lucide-react';
+import AIChatWindow from './components/AI/AIChatWindow';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -17,33 +20,32 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [visits, setVisits] = useState<VisitNote[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [sops, setSops] = useState<SOP[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  
   const [isLoading, setIsLoading] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   
   // Config State
   const [showChecklist, setShowChecklist] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   
-  // Firebase is treated as "Always Connected"
   const isConnected = true;
 
   // --- Initialization & Real-time Listeners ---
   useEffect(() => {
     setIsLoading(true);
 
-    // Subscribe to Real-time updates
-    const unsubscribeTasks = firebaseService.subscribeToTasks((liveTasks) => {
-      setTasks(liveTasks);
-      // We can assume basic loading is done when the first critical data arrives
-      setIsLoading(false);
-    });
+    const unsubTasks = firebaseService.subscribeToTasks(setTasks);
+    const unsubIssues = firebaseService.subscribeToIssues(setIssues);
+    const unsubVisits = firebaseService.subscribeToVisits(setVisits);
+    const unsubPartners = firebaseService.subscribeToPartners(setPartners);
+    const unsubSops = firebaseService.subscribeToSOPs(setSops);
+    const unsubContacts = firebaseService.subscribeToContacts(setContacts);
 
-    const unsubscribeIssues = firebaseService.subscribeToIssues((liveIssues) => {
-      setIssues(liveIssues);
-    });
-
-    const unsubscribeVisits = firebaseService.subscribeToVisits((liveVisits) => {
-      setVisits(liveVisits);
-    });
+    // Simulate initial load delay just for UI polish
+    setTimeout(() => setIsLoading(false), 800);
 
     // Check time for Checklist Popup
     const hour = new Date().getHours();
@@ -56,37 +58,28 @@ const App: React.FC = () => {
 
     // Cleanup listeners on unmount
     return () => {
-      unsubscribeTasks();
-      unsubscribeIssues();
-      unsubscribeVisits();
+      unsubTasks(); unsubIssues(); unsubVisits();
+      unsubPartners(); unsubSops(); unsubContacts();
     };
   }, []);
 
-
   // --- Data Handlers ---
-  // Note: We no longer manually set State here. 
-  // We send the command to Firebase, and the Listener (useEffect above) 
-  // receives the update and syncs the UI automatically.
+  const handleSaveTask = (t: Task) => firebaseService.saveTask(t);
+  const handleDeleteTask = (id: string) => firebaseService.deleteTask(id);
+  
+  const handleSaveIssue = (i: Issue) => firebaseService.saveIssue(i);
+  
+  const handleSaveVisit = (v: VisitNote) => firebaseService.saveVisit(v);
+  const handleDeleteVisit = (id: string) => firebaseService.deleteVisit(id);
 
-  const handleSaveTask = async (task: Task) => {
-    await firebaseService.saveTask(task);
-  };
+  const handleSavePartner = (p: Partner) => firebaseService.savePartner(p);
+  const handleDeletePartner = (id: string) => firebaseService.deletePartner(id);
 
-  const handleDeleteTask = async (id: string) => {
-    await firebaseService.deleteTask(id);
-  };
+  const handleSaveSOP = (s: SOP) => firebaseService.saveSOP(s);
+  const handleDeleteSOP = (id: string) => firebaseService.deleteSOP(id);
 
-  const handleSaveIssue = async (issue: Issue) => {
-    await firebaseService.saveIssue(issue);
-  };
-
-  const handleSaveVisit = async (visit: VisitNote) => {
-    await firebaseService.saveVisit(visit);
-  };
-
-  const handleDeleteVisit = async (id: string) => {
-    await firebaseService.deleteVisit(id);
-  };
+  const handleSaveContact = (c: Contact) => firebaseService.saveContact(c);
+  const handleDeleteContact = (id: string) => firebaseService.deleteContact(id);
 
   return (
     <Layout 
@@ -99,7 +92,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center backdrop-blur-sm">
           <div className="bg-bg-card border border-slate-700 p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
             <Loader2 className="animate-spin text-neon" size={40} />
-            <span className="text-sm font-bold text-gray-300">Syncing Database...</span>
+            <span className="text-sm font-bold text-gray-300">Syncing Ecosystem...</span>
           </div>
         </div>
       )}
@@ -109,7 +102,33 @@ const App: React.FC = () => {
       {activeTab === 'issues' && <IssueTracker issues={issues} onSaveIssue={handleSaveIssue} />}
       {activeTab === 'visits' && <VisitNotes visits={visits} onSaveVisit={handleSaveVisit} onDeleteVisit={handleDeleteVisit} />}
       
+      {/* New Modules */}
+      {activeTab === 'partners' && <PartnerManager partners={partners} onSavePartner={handleSavePartner} onDeletePartner={handleDeletePartner} />}
+      {activeTab === 'knowledge' && <KnowledgeBase sops={sops} contacts={contacts} onSaveSOP={handleSaveSOP} onDeleteSOP={handleDeleteSOP} onSaveContact={handleSaveContact} onDeleteContact={handleDeleteContact} />}
+
       <ChecklistModal isOpen={showChecklist} onClose={() => { setShowChecklist(false); sessionStorage.setItem('HAS_SEEN_CHECKLIST', 'true'); }} />
+      
+      {/* Global Chat Trigger (Floating if not in dashboard) */}
+      {activeTab !== 'dashboard' && (
+        <button 
+            onClick={() => setIsChatOpen(true)}
+            className="fixed bottom-6 right-6 bg-white text-black p-4 rounded-full shadow-glow hover:scale-105 transition-transform z-40"
+        >
+            <Database size={24} />
+        </button>
+      )}
+
+      <AIChatWindow 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        tasks={tasks}
+        issues={issues}
+        visits={visits}
+        partners={partners}
+        sops={sops}
+        onSaveTask={handleSaveTask} 
+        onSaveVisit={handleSaveVisit}
+      />
 
       {showSettings && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -133,10 +152,6 @@ const App: React.FC = () => {
                    <p className="text-xs text-gray-400 mt-1">Data syncs instantly across devices.</p>
                 </div>
               </div>
-
-              <p className="text-sm text-gray-400 text-center">
-                Changes made by other specialists will appear here automatically.
-              </p>
             </div>
           </div>
         </div>

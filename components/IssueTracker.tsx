@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { Issue, IssueStatus, Division } from '../types';
-import { Plus, AlertTriangle, Search, Filter, Clock, BrainCircuit, Lightbulb } from 'lucide-react';
+import { Issue, IssueStatus, Division, EscalationLog } from '../types';
+import { Plus, AlertTriangle, Search, Filter, Clock, BrainCircuit, Lightbulb, Send, User } from 'lucide-react';
 import { useAIClassifier, useAISuggestion, useAIAutoFillIssue } from '../services/ai/aiHooks';
 import { AIButton } from './AI/AIButtons';
 
@@ -14,6 +15,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [rawInput, setRawInput] = useState('');
+  const [editingIssue, setEditingIssue] = useState<string | null>(null);
   
   const { run: runClassifier, loading: classifying } = useAIClassifier();
   const { run: runSuggestion, loading: suggesting } = useAISuggestion();
@@ -27,8 +29,11 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     sopRelated: '',
     chronology: '',
     division: Division.OPS,
-    status: IssueStatus.OPEN
+    status: IssueStatus.OPEN,
+    escalationLog: []
   });
+
+  const [newLog, setNewLog] = useState('');
 
   // --- Formatting Helpers ---
   const toTitleCase = (str: string) => {
@@ -106,25 +111,52 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
     return matchSearch && matchStatus;
   });
 
+  const handleOpenModal = (issue?: Issue) => {
+      if (issue) {
+          setEditingIssue(issue.id);
+          setFormState(issue);
+      } else {
+          setEditingIssue(null);
+          setFormState({ awb: '', partnerName: '', issueType: '', chronology: '', division: Division.OPS, status: IssueStatus.OPEN, escalationLog: [] });
+      }
+      setIsModalOpen(true);
+  };
+
+  const handleAddLog = () => {
+      if (!newLog) return;
+      const entry: EscalationLog = {
+          id: Math.random().toString(36).substring(7),
+          timestamp: new Date().toISOString(),
+          actor: 'You',
+          action: 'Update',
+          note: newLog
+      };
+      setFormState(prev => ({
+          ...prev,
+          escalationLog: [...(prev.escalationLog || []), entry]
+      }));
+      setNewLog('');
+  };
+
   const handleCreate = () => {
     if (!formState.awb || !formState.issueType) return;
     
     const newIssue: Issue = {
-      id: Math.random().toString(36).substring(7),
-      awb: (formState.awb || '').toUpperCase(), // Force Uppercase
-      partnerName: toTitleCase(formState.partnerName || ''), // Force Title Case
-      issueType: toTitleCase(formState.issueType!), // Force Title Case
+      id: editingIssue || Math.random().toString(36).substring(7),
+      awb: (formState.awb || '').toUpperCase(),
+      partnerName: toTitleCase(formState.partnerName || ''),
+      issueType: toTitleCase(formState.issueType!),
       opcode: (formState.opcode || '').toUpperCase(),
       sopRelated: formState.sopRelated || '',
-      chronology: toSentenceCase(formState.chronology || ''), // Force Sentence Case
+      chronology: toSentenceCase(formState.chronology || ''),
       division: formState.division || Division.OPS,
-      status: IssueStatus.OPEN,
-      createdAt: new Date().toISOString(),
+      status: formState.status || IssueStatus.OPEN,
+      createdAt: editingIssue ? (formState.createdAt || new Date().toISOString()) : new Date().toISOString(),
+      escalationLog: formState.escalationLog || []
     };
     
     onSaveIssue(newIssue);
     setIsModalOpen(false);
-    setFormState({ awb: '', partnerName: '', issueType: '', chronology: '', division: Division.OPS });
     setRawInput('');
   };
 
@@ -133,10 +165,10 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
       <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Issue Tracker</h2>
-          <p className="text-gray-400 text-sm">SLA Monitoring (24h Limit)</p>
+          <p className="text-gray-400 text-sm">SLA Monitoring & Escalation Log</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => handleOpenModal()}
           className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-glow transition-all active:scale-95"
         >
           <Plus size={18} /> <span className="font-bold">Report Issue</span>
@@ -191,7 +223,7 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
               {filteredIssues.map(issue => {
                 const sla = getSlaStatus(issue.createdAt, issue.status);
                 return (
-                  <tr key={issue.id} className="hover:bg-white/5 transition-colors group">
+                  <tr key={issue.id} onClick={() => handleOpenModal(issue)} className="hover:bg-white/5 transition-colors group cursor-pointer">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col items-start gap-2">
                         <span className={`px-2 py-1 rounded text-[10px] font-bold border ${
@@ -218,12 +250,12 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
                       {issue.division}
                     </td>
                     <td className="px-6 py-4">
-                       <AIButton onClick={() => handleSuggest(issue)} loading={suggesting} label="Solve" size="sm" variant="secondary" icon={Lightbulb} />
+                       <AIButton onClick={(e) => {e.stopPropagation(); handleSuggest(issue)}} loading={suggesting} label="Solve" size="sm" variant="secondary" icon={Lightbulb} />
                     </td>
                     <td className="px-6 py-4">
                       {issue.status !== IssueStatus.DONE && (
                          <button 
-                           onClick={() => onSaveIssue({...issue, status: IssueStatus.DONE})}
+                           onClick={(e) => {e.stopPropagation(); onSaveIssue({...issue, status: IssueStatus.DONE})}}
                            className="text-white hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold border border-white/30 transition-colors"
                          >
                            Resolve
@@ -241,118 +273,159 @@ const IssueTracker: React.FC<IssueTrackerProps> = ({ issues, onSaveIssue }) => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="glass-panel rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto animate-scale-up border border-white/10">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-white/10 pb-4">
-              <AlertTriangle className="text-red-500" /> Report Issue
-            </h3>
+          <div className="glass-panel rounded-3xl shadow-2xl w-full max-w-3xl p-0 max-h-[90vh] overflow-hidden animate-scale-up border border-white/10 flex flex-col md:flex-row">
+             
+             {/* Left Side: Form */}
+             <div className="flex-1 p-6 overflow-y-auto">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-white/10 pb-4">
+                <AlertTriangle className="text-red-500" /> {editingIssue ? 'Edit Ticket' : 'Report Issue'}
+                </h3>
 
-             {/* AI AutoFill */}
-             <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/10 mb-6">
-               <div className="flex gap-3">
-                  <textarea
-                    className="flex-1 bg-transparent text-white text-sm outline-none placeholder-gray-600 h-12 resize-none"
-                    placeholder="Paste WhatsApp chat here..."
-                    value={rawInput}
-                    onChange={e => setRawInput(e.target.value)}
-                  />
-                  <div className="flex flex-col justify-center">
-                    <AIButton onClick={handleAutoFill} loading={filling} label="Auto" size="sm" />
-                  </div>
-               </div>
-             </div>
-            
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                 <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">AWB</label>
-                    <input 
-                      className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm uppercase"
-                      value={formState.awb}
-                      onChange={e => setFormState({...formState, awb: e.target.value})}
-                      placeholder="1000..."
-                    />
-                 </div>
-                 <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Opcode</label>
-                    <input 
-                      className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm uppercase"
-                      value={formState.opcode}
-                      onChange={e => setFormState({...formState, opcode: e.target.value})}
-                    />
-                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Partner Name</label>
-                <input 
-                  className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm capitalize"
-                  value={formState.partnerName}
-                  onChange={e => setFormState({...formState, partnerName: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Issue Type</label>
-                <input 
-                  className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm capitalize"
-                  placeholder="e.g. Wrong Routing"
-                  value={formState.issueType}
-                  onChange={e => setFormState({...formState, issueType: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold text-gray-400 uppercase">Chronology</label>
-                  <AIButton onClick={handleClassify} loading={classifying} label="Classify" size="sm" variant="secondary" icon={BrainCircuit} />
+                {!editingIssue && (
+                    <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/10 mb-6">
+                    <div className="flex gap-3">
+                        <textarea
+                            className="flex-1 bg-transparent text-white text-sm outline-none placeholder-gray-600 h-12 resize-none"
+                            placeholder="Paste WhatsApp chat here..."
+                            value={rawInput}
+                            onChange={e => setRawInput(e.target.value)}
+                        />
+                        <div className="flex flex-col justify-center">
+                            <AIButton onClick={handleAutoFill} loading={filling} label="Auto" size="sm" />
+                        </div>
+                    </div>
+                    </div>
+                )}
+                
+                <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">AWB</label>
+                        <input 
+                        className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm uppercase"
+                        value={formState.awb}
+                        onChange={e => setFormState({...formState, awb: e.target.value})}
+                        placeholder="1000..."
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Opcode</label>
+                        <input 
+                        className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm uppercase"
+                        value={formState.opcode}
+                        onChange={e => setFormState({...formState, opcode: e.target.value})}
+                        />
+                    </div>
                 </div>
-                <textarea 
-                  className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm h-24 resize-none"
-                  value={formState.chronology}
-                  onChange={e => setFormState({...formState, chronology: e.target.value})}
-                  placeholder="Describe what happened..."
-                />
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Division</label>
-                  <div className="relative">
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Partner Name</label>
+                    <input 
+                    className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm capitalize"
+                    value={formState.partnerName}
+                    onChange={e => setFormState({...formState, partnerName: e.target.value})}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Issue Type</label>
+                    <input 
+                    className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm capitalize"
+                    placeholder="e.g. Wrong Routing"
+                    value={formState.issueType}
+                    onChange={e => setFormState({...formState, issueType: e.target.value})}
+                    />
+                </div>
+
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-gray-400 uppercase">Chronology</label>
+                    <AIButton onClick={handleClassify} loading={classifying} label="Classify" size="sm" variant="secondary" icon={BrainCircuit} />
+                    </div>
+                    <textarea 
+                    className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm h-24 resize-none"
+                    value={formState.chronology}
+                    onChange={e => setFormState({...formState, chronology: e.target.value})}
+                    placeholder="Describe what happened..."
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Division</label>
+                    <div className="relative">
+                        <select 
+                            className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm appearance-none"
+                            value={formState.division}
+                            onChange={e => setFormState({...formState, division: e.target.value as Division})}
+                        >
+                            {Object.values(Division).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </div>
+                    </div>
+                    <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Status</label>
                     <select 
-                        className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm appearance-none"
-                        value={formState.division}
-                        onChange={e => setFormState({...formState, division: e.target.value as Division})}
-                    >
-                        {Object.values(Division).map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                  </div>
+                            className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm appearance-none"
+                            value={formState.status}
+                            onChange={e => setFormState({...formState, status: e.target.value as IssueStatus})}
+                        >
+                            {Object.values(IssueStatus).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">SOP Ref</label>
-                   <input 
-                      className="w-full bg-black text-white rounded-xl p-3 border border-white/10 outline-none text-sm"
-                      placeholder="e.g. 287"
-                      value={formState.sopRelated}
-                      onChange={e => setFormState({...formState, sopRelated: e.target.value})}
-                    />
-                </div>
-              </div>
 
-              <div className="flex gap-4 pt-4 mt-4">
-                <button 
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-3 rounded-xl text-gray-400 font-bold hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleCreate}
-                  className="flex-1 py-3 bg-white text-black rounded-xl font-bold hover:bg-zinc-200 shadow-glow transition-all"
-                >
-                  Submit Report
-                </button>
-              </div>
-            </div>
+                <div className="flex gap-4 pt-4 mt-4">
+                    <button 
+                    onClick={() => setIsModalOpen(false)}
+                    className="flex-1 py-3 rounded-xl text-gray-400 font-bold hover:text-white transition-colors"
+                    >
+                    Cancel
+                    </button>
+                    <button 
+                    onClick={handleCreate}
+                    className="flex-1 py-3 bg-white text-black rounded-xl font-bold hover:bg-zinc-200 shadow-glow transition-all"
+                    >
+                    {editingIssue ? 'Update Ticket' : 'Submit Report'}
+                    </button>
+                </div>
+                </div>
+             </div>
+
+             {/* Right Side: Escalation Log */}
+             <div className="w-full md:w-[320px] bg-zinc-900/30 border-l border-white/10 p-6 flex flex-col">
+                <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest flex items-center gap-2">
+                    <Clock size={14} /> Escalation Log
+                </h3>
+                
+                <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar mb-4">
+                    {formState.escalationLog?.length === 0 && (
+                        <p className="text-xs text-zinc-600 italic text-center py-10">No activity recorded.</p>
+                    )}
+                    {formState.escalationLog?.map((log, idx) => (
+                        <div key={idx} className="relative pl-4 border-l border-white/10">
+                            <div className="absolute left-[-4px] top-0 w-2 h-2 bg-zinc-500 rounded-full"></div>
+                            <div className="text-[10px] text-zinc-500 mb-1">{new Date(log.timestamp).toLocaleString()}</div>
+                            <div className="text-xs font-bold text-zinc-300">{log.actor} - {log.action}</div>
+                            <div className="text-xs text-zinc-400 mt-1">{log.note}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-auto">
+                    <input 
+                        className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white mb-2"
+                        placeholder="Log Action (e.g. Emailed Finance)..."
+                        value={newLog}
+                        onChange={e => setNewLog(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddLog()}
+                    />
+                    <button onClick={handleAddLog} disabled={!newLog} className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold rounded-lg transition-colors">
+                        Add Log Entry
+                    </button>
+                </div>
+             </div>
+
           </div>
         </div>
       )}
