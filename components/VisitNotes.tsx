@@ -99,11 +99,16 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
   };
 
   const handleSelectPartner = (p: Partner) => {
+      // Format coordinates for Google Maps URL: https://www.google.com/maps?q=lat,long
+      const cleanCoords = p.coordinates ? p.coordinates.replace(/\s/g, '') : '';
+      const formattedMapLink = cleanCoords ? `https://www.google.com/maps?q=${cleanCoords}` : '';
+
       setFormState(prev => ({
           ...prev,
           partnerName: p.name,
           coordinates: p.coordinates || prev.coordinates,
-          googleMapsLink: p.googleMapsLink || (p.coordinates ? `https://www.google.com/maps/search/?api=1&query=${p.coordinates}` : prev.googleMapsLink),
+          // Use the specific format requested if coords exist
+          googleMapsLink: formattedMapLink || p.googleMapsLink || prev.googleMapsLink,
           ordersLastMonth: p.volumeM1 || prev.ordersLastMonth,
           ordersDailyAvg: p.volumeM1 ? Math.round(p.volumeM1 / 30) : prev.ordersDailyAvg
       }));
