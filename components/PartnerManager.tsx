@@ -44,12 +44,22 @@ const mapOptions = {
 // --- HELPERS ---
 const parseCoordinates = (coordString: string) => {
   if (!coordString) return null;
-  // Remove spaces and split
-  const parts = coordString.replace(/\s/g, '').split(',');
-  if (parts.length !== 2) return null;
+  // Try to split by comma-space first (standardized format)
+  let parts = coordString.split(', ');
   
-  const lat = parseFloat(parts[0]);
-  const lng = parseFloat(parts[1]);
+  if (parts.length !== 2) {
+      // Fallback: split by comma only
+      parts = coordString.split(',');
+  }
+
+  if (parts.length < 2) return null;
+  
+  // Ensure we have dots for decimals
+  const latStr = parts[0].replace(',', '.').replace(/[^\d.-]/g, '');
+  const lngStr = parts[1].replace(',', '.').replace(/[^\d.-]/g, '');
+
+  const lat = parseFloat(latStr);
+  const lng = parseFloat(lngStr);
   
   if (isNaN(lat) || isNaN(lng)) return null;
   return { lat, lng };
@@ -176,11 +186,15 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
         // Combine Lat/Long accurately
         let coordinates = '';
         if (idxLat > -1 && idxLong > -1 && row[idxLat] && row[idxLong]) {
-            // Clean up coordinate strings
-            const lat = row[idxLat].replace(/[^\d.-]/g, '');
-            const lng = row[idxLong].replace(/[^\d.-]/g, '');
-            if (lat && lng) {
-                coordinates = `${lat}, ${lng}`;
+            // Intelligent cleanup: 
+            // 1. Replace ',' with '.' (Indonesian/European decimal format)
+            // 2. Remove anything that isn't a digit, dot, or minus sign
+            const cleanLat = row[idxLat].replace(',', '.').replace(/[^\d.-]/g, '');
+            const cleanLng = row[idxLong].replace(',', '.').replace(/[^\d.-]/g, '');
+            
+            if (cleanLat && cleanLng && !isNaN(Number(cleanLat)) && !isNaN(Number(cleanLng))) {
+                // Ensure we store it with a standardized separator
+                coordinates = `${cleanLat}, ${cleanLng}`;
             }
         }
 
@@ -417,7 +431,7 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                                            <div className="text-[10px] text-zinc-500">{p.ownerName}</div>
                                        </td>
                                        <td className="px-6 py-3">
-                                           <div className="font-mono text-xs text-zinc-300">{p.nia || '-'}</div>
+                                           <div className="font-mono text-xs text-zinc-300">{(p.nia || '')}</div>
                                            <div className="text-[10px] text-zinc-500">{p.serviceType}</div>
                                        </td>
                                        <td className="px-6 py-3">
@@ -496,7 +510,7 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                                     >
                                         <div className="p-2 text-black max-w-[200px]">
                                             <h3 className="font-bold text-sm">{p.name}</h3>
-                                            <p className="text-[10px] text-gray-500 font-bold mb-1">{p.nia} - {p.serviceType}</p>
+                                            <p className="text-[10px] text-gray-500 font-bold mb-1">{(p.nia || '')} - {p.serviceType}</p>
                                             <p className="text-xs text-gray-600 mb-2">{p.address} ({p.district})</p>
                                             <p className="text-xs text-gray-800 font-medium">Vol: {p.volumeM1}</p>
                                             <div className="flex gap-2 mt-2">

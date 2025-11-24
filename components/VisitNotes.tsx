@@ -99,15 +99,50 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
   };
 
   const handleSelectPartner = (p: Partner) => {
-      // Format coordinates for Google Maps URL: https://www.google.com/maps?q=lat,long
-      const cleanCoords = p.coordinates ? p.coordinates.replace(/\s/g, '') : '';
-      const formattedMapLink = cleanCoords ? `https://www.google.com/maps?q=${cleanCoords}` : '';
+      let formattedMapLink = '';
+      
+      if (p.coordinates) {
+          // Robustly parse lat, long.
+          // Handle cases like "-6,200, 106,800" (comma decimals) or "-6.200, 106.800" (dot decimals)
+          let lat = '', lng = '';
+          
+          // First, remove any whitespace to make splitting predictable
+          // But wait, split by ", " (comma space) is a good heuristic if the data is clean.
+          // Let's try to normalize to dots first.
+          
+          // Split by comma
+          const parts = p.coordinates.split(',').map(s => s.trim());
+          
+          if (parts.length === 2) {
+             // Standard "lat, lng" or "lat,lng"
+             // Replace decimal commas with dots
+             lat = parts[0].replace(',', '.').replace(/[^\d.-]/g, '');
+             lng = parts[1].replace(',', '.').replace(/[^\d.-]/g, '');
+          } else if (parts.length > 2) {
+             // Messy case: "-6,200, 106,800" -> ["-6", "200", "106", "800"]
+             // This happens if CSV import failed to clean up.
+             // We can try to reconstruct:
+             // Assume first two parts are Lat, next two are Lng?
+             // Or better, just rely on the new PartnerManager logic which cleans this up.
+             
+             // Fallback heuristic:
+             // Find the space?
+             const partsSpace = p.coordinates.split(/\s+/);
+             if (partsSpace.length === 2) {
+                 lat = partsSpace[0].replace(',', '.').replace(/[^\d.-]/g, '');
+                 lng = partsSpace[1].replace(',', '.').replace(/[^\d.-]/g, '');
+             }
+          }
+          
+          if (lat && lng && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
+              formattedMapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+          }
+      }
 
       setFormState(prev => ({
           ...prev,
           partnerName: p.name,
           coordinates: p.coordinates || prev.coordinates,
-          // Use the specific format requested if coords exist
           googleMapsLink: formattedMapLink || p.googleMapsLink || prev.googleMapsLink,
           ordersLastMonth: p.volumeM1 || prev.ordersLastMonth,
           ordersDailyAvg: p.volumeM1 ? Math.round(p.volumeM1 / 30) : prev.ordersDailyAvg
