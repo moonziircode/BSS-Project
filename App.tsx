@@ -100,7 +100,7 @@ const App: React.FC = () => {
       {activeTab === 'dashboard' && <Dashboard tasks={tasks} issues={issues} visits={visits} />}
       {activeTab === 'tasks' && <TaskManager tasks={tasks} onSaveTask={handleSaveTask} onDeleteTask={handleDeleteTask} />}
       {activeTab === 'issues' && <IssueTracker issues={issues} onSaveIssue={handleSaveIssue} />}
-      {activeTab === 'visits' && <VisitNotes visits={visits} onSaveVisit={handleSaveVisit} onDeleteVisit={handleDeleteVisit} />}
+      {activeTab === 'visits' && <VisitNotes visits={visits} partners={partners} onSaveVisit={handleSaveVisit} onDeleteVisit={handleDeleteVisit} />}
       
       {/* New Modules */}
       {activeTab === 'partners' && <PartnerManager partners={partners} onSavePartner={handleSavePartner} onDeletePartner={handleDeletePartner} />}

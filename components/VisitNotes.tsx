@@ -1,16 +1,18 @@
+
 import React, { useState, useMemo } from 'react';
-import { VisitNote, VisitStatus } from '../types';
+import { VisitNote, VisitStatus, Partner } from '../types';
 import { useAISummary, useAIAutoFillVisit, useAIImprovement } from '../services/ai/aiHooks';
 import { AIButton } from './AI/AIButtons';
-import { MapPin, Sparkles, ChevronDown, ChevronUp, Navigation, Calendar, Edit, CheckCircle, Clock, CalendarDays, History, TrendingUp, Trash2, Plus, X } from 'lucide-react';
+import { MapPin, Sparkles, ChevronDown, ChevronUp, Navigation, Calendar, Edit, CheckCircle, Clock, CalendarDays, History, TrendingUp, Trash2, Plus, X, Search } from 'lucide-react';
 
 interface VisitNotesProps {
   visits: VisitNote[];
+  partners: Partner[];
   onSaveVisit: (visit: VisitNote) => void;
   onDeleteVisit: (id: string) => void;
 }
 
-const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVisit }) => {
+const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, onDeleteVisit }) => {
   const [activeTab, setActiveTab] = useState<'PLANNED' | 'HISTORY'>('PLANNED');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -19,6 +21,9 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [newDate, setNewDate] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Partner Autocomplete State
+  const [showPartnerSuggestions, setShowPartnerSuggestions] = useState(false);
 
   const { run: runSummary, loading: summaryLoading } = useAISummary();
   const { run: runAutofill, loading: autofillLoading } = useAIAutoFillVisit();
@@ -29,6 +34,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
     googleMapsLink: '',
     coordinates: '',
     visitDatePlan: '',
+    visitTime: '',
     visitDateActual: '',
     ordersLastMonth: 0,
     ordersDailyAvg: 0,
@@ -73,6 +79,12 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
       return new Date(dateB).getTime() - new Date(dateA).getTime(); 
     });
   }, [visits, activeTab, filterDate]);
+  
+  const suggestedPartners = useMemo(() => {
+    if (!formState.partnerName) return [];
+    const search = formState.partnerName.toLowerCase();
+    return partners.filter(p => p.name.toLowerCase().includes(search)).slice(0, 5);
+  }, [partners, formState.partnerName]);
 
   const handleSmartParse = async () => {
     if (!rawInput) return;
@@ -84,6 +96,18 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
         ordersDailyAvg: extractedData.ordersLastMonth ? parseFloat((extractedData.ordersLastMonth / 30).toFixed(1)) : prev.ordersDailyAvg
       }));
     }
+  };
+
+  const handleSelectPartner = (p: Partner) => {
+      setFormState(prev => ({
+          ...prev,
+          partnerName: p.name,
+          coordinates: p.coordinates || prev.coordinates,
+          googleMapsLink: p.googleMapsLink || (p.coordinates ? `https://www.google.com/maps/search/?api=1&query=${p.coordinates}` : prev.googleMapsLink),
+          ordersLastMonth: p.volumeM1 || prev.ordersLastMonth,
+          ordersDailyAvg: p.volumeM1 ? Math.round(p.volumeM1 / 30) : prev.ordersDailyAvg
+      }));
+      setShowPartnerSuggestions(false);
   };
 
   const handleGenerateSummary = async () => {
@@ -151,6 +175,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
       googleMapsLink: formState.googleMapsLink || '',
       coordinates: formState.coordinates || '',
       visitDatePlan: formState.visitDatePlan || '',
+      visitTime: formState.visitTime || '',
       visitDateActual: formState.visitDateActual || '',
       ordersLastMonth: Number(formState.ordersLastMonth) || 0,
       ordersDailyAvg: Number(formState.ordersDailyAvg) || 0,
@@ -172,6 +197,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
       googleMapsLink: '',
       coordinates: '',
       visitDatePlan: '',
+      visitTime: '',
       visitDateActual: '',
       ordersLastMonth: 0,
       ordersDailyAvg: 0,
@@ -182,6 +208,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
       status: 'PLANNED'
     });
     setRawInput('');
+    setShowPartnerSuggestions(false);
   };
 
   return (
@@ -226,13 +253,33 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-            <div>
+            <div className="relative">
               <label className="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Partner Name</label>
               <input 
                 className="w-full bg-black text-white rounded-md p-3 border border-white/10 focus:border-white text-sm capitalize"
                 value={formState.partnerName}
-                onChange={e => setFormState({...formState, partnerName: e.target.value})}
+                onChange={e => {
+                    setFormState({...formState, partnerName: e.target.value});
+                    setShowPartnerSuggestions(true);
+                }}
+                onFocus={() => setShowPartnerSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowPartnerSuggestions(false), 200)}
+                placeholder="Type to search partner..."
               />
+              {showPartnerSuggestions && suggestedPartners.length > 0 && (
+                  <div className="absolute top-full left-0 w-full bg-black border border-zinc-700 rounded-md mt-1 z-20 shadow-xl max-h-40 overflow-y-auto">
+                      {suggestedPartners.map(p => (
+                          <div 
+                            key={p.id} 
+                            className="p-2 text-sm text-zinc-300 hover:bg-zinc-800 cursor-pointer flex justify-between"
+                            onClick={() => handleSelectPartner(p)}
+                          >
+                              <span>{p.name}</span>
+                              <span className="text-[10px] text-zinc-600 uppercase">{p.district}</span>
+                          </div>
+                      ))}
+                  </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
                <div>
@@ -259,7 +306,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
              <div className="border border-white/10 p-4 rounded-lg">
                 <h4 className="text-[10px] font-bold text-zinc-400 mb-3 uppercase">Schedule</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
                     <label className="block text-[10px] font-bold text-zinc-600 mb-1">PLAN DATE</label>
                     <input 
@@ -270,14 +317,23 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-600 mb-1">ACTUAL DATE</label>
+                    <label className="block text-[10px] font-bold text-zinc-600 mb-1">TIME (OPTIONAL)</label>
+                    <input 
+                      type="time"
+                      className="w-full bg-black text-white rounded-md p-2 text-xs border border-white/10"
+                      value={formState.visitTime || ''}
+                      onChange={e => setFormState({...formState, visitTime: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div>
+                    <label className="block text-[10px] font-bold text-zinc-600 mb-1">ACTUAL DATE (DONE)</label>
                     <input 
                       type="date"
                       className="w-full bg-black text-white rounded-md p-2 text-xs border border-white/10"
                       value={formState.visitDateActual}
                       onChange={e => setFormState({...formState, visitDateActual: e.target.value})}
                     />
-                  </div>
                 </div>
              </div>
              <div className="border border-white/10 p-4 rounded-lg">
@@ -402,6 +458,11 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, onSaveVisit, onDeleteVi
                            ? `${new Date(visit.visitDateActual).toLocaleDateString('en-CA')}`
                            : `${visit.visitDatePlan || 'Unscheduled'}`
                          }
+                         {visit.visitTime && visit.status !== 'DONE' && (
+                            <span className="flex items-center gap-1 text-zinc-400">
+                                @ {visit.visitTime}
+                            </span>
+                         )}
                        </span>
                        {visit.ordersLastMonth > 0 && (
                          <span className="text-[9px] text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded-full">

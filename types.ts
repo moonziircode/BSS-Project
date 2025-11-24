@@ -77,6 +77,7 @@ export interface VisitNote {
   googleMapsLink: string;
   coordinates: string;
   visitDatePlan: string;
+  visitTime?: string; // Optional Time
   visitDateActual: string;
   ordersLastMonth: number;
   ordersDailyAvg: number;
