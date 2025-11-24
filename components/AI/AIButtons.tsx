@@ -2,7 +2,7 @@ import React from 'react';
 import { Sparkles, Loader2, BrainCircuit, FileText, MessageSquarePlus } from 'lucide-react';
 
 interface AIButtonProps {
-  onClick: () => void;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>;
   loading: boolean;
   label: string;
   icon?: React.ElementType;

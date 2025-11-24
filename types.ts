@@ -91,17 +91,39 @@ export interface VisitNote {
 
 export interface Partner {
   id: string;
-  name: string;
-  ownerName: string;
-  phone: string;
-  address: string;
-  coordinates: string; // "lat, long"
-  joinedDate: string;
-  // Historical Volume for Trend Analysis
+  // Core Identifiers
+  name: string; // External Store Name
+  nia: string; // NIA
+  nik?: string; // NIK
+  
+  // Operational Details
+  serviceType: string; // Service Type
+  uz: string; // UZ
+  stagingCode: string; // Staging Code
+  openingHour?: string;
+  closingHour?: string;
+  
+  // Owner Info
+  ownerName: string; // First Name + Last Name
+  phone: string; // No. Telp
+  
+  // Location
+  address: string; // Address
+  city: string; // City
+  district: string; // District
+  zipCode: string; // Zip Code
+  province?: string; // Province
+  coordinates: string; // "lat, long" (Combined from Longitude/Latitude)
+  googleMapsLink?: string; // Optional Link
+  
+  // Meta
+  joinedDate: string; // Registered Date
+  status: 'GROWTH' | 'STAGNANT' | 'AT_RISK';
+  
+  // Historical Volume (Internal Tracking)
   volumeM3: number; // 2 months ago
   volumeM2: number; // Last month
   volumeM1: number; // Current Month (to date)
-  status: 'GROWTH' | 'STAGNANT' | 'AT_RISK';
 }
 
 export interface SOP {
