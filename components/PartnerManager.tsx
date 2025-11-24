@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { Partner } from '../types';
-import { Plus, Trash2, Sparkles, Download, MapPin, Navigation, Edit, Upload, Filter, Search, X } from 'lucide-react';
+import { Plus, Trash2, Sparkles, Download, MapPin, Navigation, Edit, Upload, Filter, Search, X, MoreHorizontal, FileSpreadsheet } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { useAIPartnerAnalysis } from '../services/ai/aiHooks';
 import { AIButton } from './AI/AIButtons';
@@ -16,7 +16,7 @@ interface PartnerManagerProps {
 // --- MAP CONFIGURATION ---
 const containerStyle = {
   width: '100%',
-  height: '500px',
+  height: '600px', // Taller map for better visibility
   borderRadius: '0.75rem',
 };
 
@@ -34,28 +34,25 @@ const mapOptions = {
     { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
     { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
     { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-    { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
-    { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
-    { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#263c3f" }] },
-    { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#6b9a76" }] },
     { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
     { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
     { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
-    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#746855" }] },
-    { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1f2835" }] },
-    { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#f3d19c" }] },
     { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
-    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
-    { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] },
   ],
 };
 
 // --- HELPERS ---
 const parseCoordinates = (coordString: string) => {
   if (!coordString) return null;
-  const parts = coordString.split(',').map(s => parseFloat(s.trim()));
-  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
-  return { lat: parts[0], lng: parts[1] };
+  // Remove spaces and split
+  const parts = coordString.replace(/\s/g, '').split(',');
+  if (parts.length !== 2) return null;
+  
+  const lat = parseFloat(parts[0]);
+  const lng = parseFloat(parts[1]);
+  
+  if (isNaN(lat) || isNaN(lng)) return null;
+  return { lat, lng };
 };
 
 const getMarkerIcon = (status: string) => {
@@ -64,6 +61,26 @@ const getMarkerIcon = (status: string) => {
     case 'AT_RISK': return "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
     default: return "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
   }
+};
+
+// CSV Line Parser (Handles quotes correctly)
+const parseCSVLine = (text: string) => {
+  const result = [];
+  let cur = '';
+  let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') {
+      inQuote = !inQuote;
+    } else if (char === ',' && !inQuote) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += char;
+    }
+  }
+  result.push(cur.trim());
+  return result;
 };
 
 const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner, onDeletePartner }) => {
@@ -83,7 +100,7 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
 
   const { run: runAnalysis, loading: analyzing } = useAIPartnerAnalysis();
   
-  const [formState, setFormState] = useState<Partial<Partner>>({
+  const defaultFormState: Partial<Partner> = {
     name: '',
     ownerName: '',
     phone: '',
@@ -100,9 +117,11 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
     volumeM2: 0,
     volumeM1: 0,
     status: 'STAGNANT'
-  });
+  };
 
-  // --- CSV IMPORT LOGIC ---
+  const [formState, setFormState] = useState<Partial<Partner>>(defaultFormState);
+
+  // --- CSV IMPORT LOGIC (IMPROVED) ---
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -112,64 +131,78 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
       const text = e.target?.result as string;
       if (!text) return;
 
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      const lines = text.split(/\r?\n/); // Handle both \n and \r\n
+      if (lines.length < 2) return;
+
+      // Header Mapping (Case Insensitive)
+      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/['"]+/g, ''));
       
-      // Expected Headers based on user request
-      // External Store Name, Service Type, First Name, Last Name, City, District, Zip Code, Address, Province, Longitude, Latitude, Registered Date, NIA, NIK, No. Telp, UZ, Staging Code, Opening Hour, Closing Hour
+      const findIndex = (keywords: string[]) => {
+        return headers.findIndex(h => keywords.some(k => h.includes(k.toLowerCase())));
+      };
 
-      const getColIndex = (name: string) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
-
-      const idxName = getColIndex('External Store Name');
-      const idxService = getColIndex('Service Type');
-      const idxFirst = getColIndex('First Name');
-      const idxLast = getColIndex('Last Name');
-      const idxCity = getColIndex('City');
-      const idxDistrict = getColIndex('District');
-      const idxZip = getColIndex('Zip Code');
-      const idxAddress = getColIndex('Address');
-      const idxProv = getColIndex('Province');
-      const idxLong = getColIndex('Longitude');
-      const idxLat = getColIndex('Latitude');
-      const idxDate = getColIndex('Registered Date');
-      const idxNia = getColIndex('NIA');
-      const idxNik = getColIndex('NIK');
-      const idxPhone = getColIndex('No. Telp');
-      const idxUz = getColIndex('UZ');
-      const idxStaging = getColIndex('Staging Code');
-      const idxOpen = getColIndex('Opening Hour');
-      const idxClose = getColIndex('Closing Hour');
+      const idxName = findIndex(['external store name', 'nama toko', 'store name']);
+      const idxService = findIndex(['service type', 'layanan']);
+      const idxFirst = findIndex(['first name', 'nama depan']);
+      const idxLast = findIndex(['last name', 'nama belakang']);
+      const idxCity = findIndex(['city', 'kota']);
+      const idxDistrict = findIndex(['district', 'kecamatan']);
+      const idxZip = findIndex(['zip', 'kode pos']);
+      const idxAddress = findIndex(['address', 'alamat']);
+      const idxProv = findIndex(['province', 'provinsi']);
+      const idxLong = findIndex(['longitude', 'long']);
+      const idxLat = findIndex(['latitude', 'lat']);
+      const idxDate = findIndex(['registered date', 'tanggal registrasi']);
+      const idxNia = findIndex(['nia']);
+      const idxNik = findIndex(['nik']);
+      const idxPhone = findIndex(['telp', 'phone', 'hp']);
+      const idxUz = findIndex(['uz', 'zona']);
+      const idxStaging = findIndex(['staging']);
+      const idxOpen = findIndex(['opening', 'buka']);
+      const idxClose = findIndex(['closing', 'tutup']);
 
       let importCount = 0;
 
       for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
+        const line = lines[i].trim();
+        if (!line) continue;
         
-        // Handle CSV split respecting quotes (basic implementation)
-        const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/"/g, ''));
+        const row = parseCSVLine(line);
         
-        if (row.length < 5) continue; // Skip invalid rows
+        // Safety check for critical fields
+        const name = idxName > -1 ? row[idxName] : '';
+        if (!name) continue;
+
+        // Combine Lat/Long accurately
+        let coordinates = '';
+        if (idxLat > -1 && idxLong > -1 && row[idxLat] && row[idxLong]) {
+            // Clean up coordinate strings
+            const lat = row[idxLat].replace(/[^\d.-]/g, '');
+            const lng = row[idxLong].replace(/[^\d.-]/g, '');
+            if (lat && lng) {
+                coordinates = `${lat}, ${lng}`;
+            }
+        }
 
         const newPartner: Partner = {
            id: Math.random().toString(36).substring(7),
-           name: row[idxName] || 'Unknown',
-           serviceType: row[idxService] || 'Reguler',
-           ownerName: `${row[idxFirst] || ''} ${row[idxLast] || ''}`.trim(),
-           city: row[idxCity] || '',
-           district: row[idxDistrict] || '',
-           zipCode: row[idxZip] || '',
-           address: row[idxAddress] || '',
-           province: row[idxProv] || '',
-           // Combine Lat/Long
-           coordinates: (row[idxLat] && row[idxLong]) ? `${row[idxLat]}, ${row[idxLong]}` : '',
-           joinedDate: row[idxDate] || new Date().toISOString().split('T')[0],
-           nia: row[idxNia] || '',
-           nik: row[idxNik] || '',
-           phone: row[idxPhone] || '',
-           uz: row[idxUz] || '',
-           stagingCode: row[idxStaging] || '',
-           openingHour: row[idxOpen] || '',
-           closingHour: row[idxClose] || '',
+           name: name.replace(/['"]+/g, ''),
+           serviceType: idxService > -1 ? row[idxService] : 'Reguler',
+           ownerName: `${idxFirst > -1 ? row[idxFirst] : ''} ${idxLast > -1 ? row[idxLast] : ''}`.trim().replace(/['"]+/g, ''),
+           city: idxCity > -1 ? row[idxCity] : '',
+           district: idxDistrict > -1 ? row[idxDistrict] : '',
+           zipCode: idxZip > -1 ? row[idxZip] : '',
+           address: idxAddress > -1 ? row[idxAddress] : '',
+           province: idxProv > -1 ? row[idxProv] : '',
+           coordinates: coordinates,
+           joinedDate: idxDate > -1 ? row[idxDate] : new Date().toISOString().split('T')[0],
+           nia: idxNia > -1 ? row[idxNia] : '',
+           nik: idxNik > -1 ? row[idxNik] : '',
+           phone: idxPhone > -1 ? row[idxPhone] : '',
+           uz: idxUz > -1 ? row[idxUz] : '',
+           stagingCode: idxStaging > -1 ? row[idxStaging] : '',
+           openingHour: idxOpen > -1 ? row[idxOpen] : '',
+           closingHour: idxClose > -1 ? row[idxClose] : '',
            // Default metrics
            volumeM3: 0,
            volumeM2: 0,
@@ -181,7 +214,7 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
         importCount++;
       }
       
-      alert(`Successfully imported ${importCount} partners.`);
+      alert(`Import Success: ${importCount} partners added.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
@@ -212,6 +245,12 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
     return 'STAGNANT';
   };
 
+  const handleOpenAdd = () => {
+    setEditingId(null);
+    setFormState(defaultFormState);
+    setIsModalOpen(true);
+  };
+
   const handleSave = () => {
     if (!formState.name) return;
     const status = getStatus(Number(formState.volumeM1), Number(formState.volumeM2));
@@ -222,16 +261,8 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
     };
     onSavePartner(newPartner);
     setIsModalOpen(false);
-    resetForm();
-  };
-
-  const resetForm = () => {
     setEditingId(null);
-    setFormState({
-        name: '', ownerName: '', phone: '', address: '', coordinates: '', 
-        nia: '', city: '', district: '', serviceType: 'Reguler',
-        volumeM3: 0, volumeM2: 0, volumeM1: 0
-    });
+    setFormState(defaultFormState);
   };
 
   const openEdit = (p: Partner) => {
@@ -239,6 +270,12 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
       setFormState(p);
       setIsModalOpen(true);
       setActiveMarker(null);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Are you sure you want to delete this partner?")) {
+        onDeletePartner(id);
+    }
   };
   
   const handleAnalyze = async (e: React.MouseEvent, p: Partner) => {
@@ -266,34 +303,16 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
     document.body.removeChild(link);
   };
 
-  const renderTrend = (p: Partner) => {
-      const data = [
-          { name: 'M-2', val: p.volumeM3 },
-          { name: 'M-1', val: p.volumeM2 },
-          { name: 'Now', val: p.volumeM1 },
-      ];
-      return (
-          <div className="h-[60px] w-[120px]">
-             <ResponsiveContainer width="100%" height="100%">
-                 <LineChart data={data}>
-                     <Line type="monotone" dataKey="val" stroke={p.status === 'GROWTH' ? '#10b981' : p.status === 'AT_RISK' ? '#ef4444' : '#71717a'} strokeWidth={2} dot={false} />
-                 </LineChart>
-             </ResponsiveContainer>
-          </div>
-      );
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
        <header className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-white/10 pb-6">
           <div>
-             <h2 className="text-3xl font-light text-white tracking-tight">Partners</h2>
+             <h2 className="text-3xl font-light text-white tracking-tight">Partner Ecosystem</h2>
              <p className="text-zinc-500 text-xs mt-1">
-                 {filteredPartners.length} Partners Found • Ecosystem Health Monitor
+                 {filteredPartners.length} Active Partners • {uniqueCities.length} Cities
              </p>
           </div>
-          <div className="flex gap-2 items-center">
-            {/* Import Button */}
+          <div className="flex gap-2 items-center flex-wrap justify-end">
             <input 
               type="file" 
               accept=".csv" 
@@ -301,62 +320,66 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
               onChange={handleFileUpload}
               className="hidden"
             />
-            <button onClick={() => fileInputRef.current?.click()} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 hover:text-white hover:border-zinc-600">
+            <button onClick={() => fileInputRef.current?.click()} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 hover:text-white hover:border-zinc-600 transition-colors">
                 <Upload size={14}/> Import CSV
             </button>
-            <button onClick={handleExportCSV} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 hover:text-white hover:border-zinc-600">
-                <Download size={14}/> CSV
+            <button onClick={handleExportCSV} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 hover:text-white hover:border-zinc-600 transition-colors">
+                <Download size={14}/> Export
             </button>
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-1 flex">
-                <button onClick={() => setActiveTab('LIST')} className={`px-3 py-1.5 text-xs font-medium rounded ${activeTab === 'LIST' ? 'bg-white text-black' : 'text-zinc-500'}`}>List</button>
-                <button onClick={() => setActiveTab('MAP')} className={`px-3 py-1.5 text-xs font-medium rounded ${activeTab === 'MAP' ? 'bg-white text-black' : 'text-zinc-500'}`}>Map</button>
+                <button onClick={() => setActiveTab('LIST')} className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${activeTab === 'LIST' ? 'bg-white text-black shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>List</button>
+                <button onClick={() => setActiveTab('MAP')} className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${activeTab === 'MAP' ? 'bg-white text-black shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>Map</button>
             </div>
-            <button onClick={() => setIsModalOpen(true)} className="bg-white text-black px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-colors">
-                <Plus size={14}/> Add
+            <button onClick={handleOpenAdd} className="bg-white text-black px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-colors shadow-glow">
+                <Plus size={14}/> Add New
             </button>
           </div>
        </header>
 
-       {/* EXCEL STYLE FILTERS */}
+       {/* FILTERS */}
        <div className="glass-panel p-4 rounded-xl border border-white/10 space-y-4">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setShowFilters(!showFilters)}>
-              <Filter size={14} className="text-zinc-400" />
-              <span className="text-xs font-bold text-white uppercase tracking-wider">Advanced Filters</span>
-              {showFilters ? <span className="text-[9px] text-zinc-500 ml-2">(Hide)</span> : <span className="text-[9px] text-zinc-500 ml-2">(Show)</span>}
+          <div className="flex items-center justify-between">
+              <div className="flex-1 max-w-md relative">
+                <input 
+                    className="w-full bg-black border border-white/10 rounded-lg pl-9 pr-2 py-2.5 text-xs text-white placeholder-zinc-600 focus:border-white transition-colors" 
+                    placeholder="Search Partner Name, NIA, or Owner..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"/>
+              </div>
+              
+              <div className="flex items-center gap-2 cursor-pointer ml-4" onClick={() => setShowFilters(!showFilters)}>
+                  <Filter size={14} className={showFilters ? "text-white" : "text-zinc-500"} />
+                  <span className={`text-xs font-bold uppercase tracking-wider ${showFilters ? "text-white" : "text-zinc-500"}`}>Filters</span>
+              </div>
           </div>
           
           {showFilters && (
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 animate-fade-in-down">
-                  <div className="col-span-2 md:col-span-1">
-                      <div className="relative">
-                        <input 
-                            className="w-full bg-black border border-white/10 rounded-lg pl-8 pr-2 py-2 text-xs text-white" 
-                            placeholder="Search Name / NIA..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                        />
-                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"/>
-                      </div>
-                  </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in-down border-t border-white/5 pt-4">
                   <div>
+                      <label className="block text-[9px] text-zinc-500 uppercase mb-1">City</label>
                       <select className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white outline-none" value={filterCity} onChange={e => setFilterCity(e.target.value)}>
                           <option value="ALL">All Cities</option>
                           {uniqueCities.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                   </div>
                   <div>
+                      <label className="block text-[9px] text-zinc-500 uppercase mb-1">District</label>
                       <select className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white outline-none" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)}>
                           <option value="ALL">All Districts</option>
                           {uniqueDistricts.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                   </div>
                   <div>
+                      <label className="block text-[9px] text-zinc-500 uppercase mb-1">Service Type</label>
                       <select className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white outline-none" value={filterService} onChange={e => setFilterService(e.target.value)}>
                           <option value="ALL">All Services</option>
                           {uniqueServiceTypes.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                   </div>
                   <div>
+                      <label className="block text-[9px] text-zinc-500 uppercase mb-1">Health Status</label>
                       <select className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white outline-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                           <option value="ALL">All Status</option>
                           <option value="GROWTH">Growth (Green)</option>
@@ -369,64 +392,84 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
        </div>
 
        {activeTab === 'LIST' && (
-           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-               {filteredPartners.map(p => (
-                   <div key={p.id} onClick={() => openEdit(p)} className="glass-panel p-5 rounded-xl hover:bg-zinc-900/30 transition-all cursor-pointer group border border-transparent hover:border-white/10">
-                       <div className="flex justify-between items-start mb-4">
-                           <div className="flex items-center gap-3">
-                               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-inner text-xs
-                                   ${p.status === 'GROWTH' ? 'bg-emerald-900/50 border border-emerald-500/30' : 
-                                     p.status === 'AT_RISK' ? 'bg-red-900/50 border border-red-500/30' : 
-                                     'bg-zinc-800 border border-zinc-700'}`}>
-                                   {(p.nia || '').slice(-2) || p.name.charAt(0)}
-                               </div>
-                               <div>
-                                   <h3 className="text-sm font-semibold text-zinc-200 line-clamp-1" title={p.name}>{p.name}</h3>
-                                   <div className="flex items-center gap-2 mt-0.5">
-                                       <span className="text-[9px] px-1.5 py-0.5 rounded font-bold border border-zinc-800 bg-zinc-900 text-zinc-400">
-                                           {p.nia}
-                                       </span>
-                                       <span className="text-[9px] px-1.5 py-0.5 rounded border border-zinc-800 bg-zinc-900 text-zinc-500">
-                                           {p.city}
-                                       </span>
-                                   </div>
-                               </div>
-                           </div>
-                           {renderTrend(p)}
-                       </div>
-                       
-                       <div className="grid grid-cols-3 gap-2 border-t border-white/5 pt-3">
-                          <div>
-                             <span className="block text-[9px] text-zinc-500 uppercase">Service</span>
-                             <span className="text-xs font-mono text-zinc-400 truncate">{p.serviceType}</span>
-                          </div>
-                          <div>
-                             <span className="block text-[9px] text-zinc-500 uppercase">District</span>
-                             <span className="text-xs font-mono text-zinc-400 truncate">{p.district}</span>
-                          </div>
-                          <div>
-                             <span className="block text-[9px] text-zinc-500 uppercase">Current Vol</span>
-                             <span className="text-xs font-mono text-white font-bold">{p.volumeM1}</span>
-                          </div>
-                       </div>
-                       
-                       <div className="mt-3 border-t border-white/5 pt-2 flex justify-end">
-                           <AIButton 
-                              onClick={(e) => handleAnalyze(e, p)} 
-                              loading={analyzing} 
-                              label="Analisa" 
-                              size="sm" 
-                              variant="secondary" 
-                              icon={Sparkles} 
-                           />
-                       </div>
-                   </div>
-               ))}
+           <div className="glass-panel rounded-xl overflow-hidden border border-white/10">
+               <div className="overflow-x-auto">
+                   <table className="w-full text-left border-collapse">
+                       <thead className="bg-zinc-900/50 text-zinc-500 text-[10px] uppercase tracking-wider border-b border-white/10">
+                           <tr>
+                               <th className="px-6 py-4 font-bold">Partner Name</th>
+                               <th className="px-6 py-4 font-bold">NIA / Type</th>
+                               <th className="px-6 py-4 font-bold">Location</th>
+                               <th className="px-6 py-4 font-bold">Coordinates</th>
+                               <th className="px-6 py-4 font-bold">Volume (M1)</th>
+                               <th className="px-6 py-4 font-bold">Status</th>
+                               <th className="px-6 py-4 font-bold text-right">Actions</th>
+                           </tr>
+                       </thead>
+                       <tbody className="divide-y divide-white/5">
+                           {filteredPartners.length === 0 ? (
+                               <tr><td colSpan={7} className="text-center py-10 text-zinc-600 text-sm italic">No partners found matching criteria.</td></tr>
+                           ) : (
+                               filteredPartners.map(p => (
+                                   <tr key={p.id} className="group hover:bg-zinc-900/30 transition-colors">
+                                       <td className="px-6 py-3">
+                                           <div className="font-semibold text-sm text-zinc-200">{p.name}</div>
+                                           <div className="text-[10px] text-zinc-500">{p.ownerName}</div>
+                                       </td>
+                                       <td className="px-6 py-3">
+                                           <div className="font-mono text-xs text-zinc-300">{p.nia || '-'}</div>
+                                           <div className="text-[10px] text-zinc-500">{p.serviceType}</div>
+                                       </td>
+                                       <td className="px-6 py-3">
+                                           <div className="text-xs text-zinc-300">{p.district}</div>
+                                           <div className="text-[10px] text-zinc-500">{p.city}</div>
+                                       </td>
+                                       <td className="px-6 py-3">
+                                            {p.coordinates ? (
+                                                <div className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-900/10 px-2 py-0.5 rounded w-fit border border-blue-900/30">
+                                                    <MapPin size={10} /> Has Coords
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] text-zinc-600 italic">Missing</span>
+                                            )}
+                                       </td>
+                                       <td className="px-6 py-3">
+                                           <div className="text-sm font-bold text-white font-mono">{p.volumeM1}</div>
+                                           <div className="h-0.5 w-12 bg-zinc-800 mt-1 rounded-full overflow-hidden">
+                                               <div className={`h-full ${p.status === 'GROWTH' ? 'bg-emerald-500' : p.status === 'AT_RISK' ? 'bg-red-500' : 'bg-yellow-500'}`} style={{ width: '100%' }}></div>
+                                           </div>
+                                       </td>
+                                       <td className="px-6 py-3">
+                                           <span className={`text-[10px] font-bold px-2 py-1 rounded border ${
+                                               p.status === 'GROWTH' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
+                                               p.status === 'AT_RISK' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
+                                               'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                                           }`}>
+                                               {p.status}
+                                           </span>
+                                       </td>
+                                       <td className="px-6 py-3 text-right">
+                                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                               <button onClick={() => openEdit(p)} className="p-2 bg-zinc-800 hover:bg-white hover:text-black rounded-md text-zinc-400 transition-all" title="Edit">
+                                                   <Edit size={14} />
+                                               </button>
+                                               <button onClick={() => handleDelete(p.id)} className="p-2 bg-zinc-800 hover:bg-red-900 hover:text-red-400 rounded-md text-zinc-400 transition-all" title="Delete">
+                                                   <Trash2 size={14} />
+                                               </button>
+                                               <AIButton onClick={(e) => handleAnalyze(e, p)} loading={analyzing} label="" icon={Sparkles} size="sm" variant="secondary" />
+                                           </div>
+                                       </td>
+                                   </tr>
+                               ))
+                           )}
+                       </tbody>
+                   </table>
+               </div>
            </div>
        )}
 
        {activeTab === 'MAP' && (
-           <div className="glass-panel p-1 rounded-xl overflow-hidden border border-white/10">
+           <div className="glass-panel p-1 rounded-xl overflow-hidden border border-white/10 shadow-2xl">
                <LoadScript googleMapsApiKey="AIzaSyBNuH9od-jt15CJ5skLrhZ7VqUUyrPedLU">
                   <GoogleMap
                     mapContainerStyle={containerStyle}
@@ -496,11 +539,11 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                       <div className="grid grid-cols-2 gap-4">
                           <div className="col-span-2 md:col-span-1">
                              <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">External Store Name</label>
-                             <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white" value={formState.name} onChange={e => setFormState({...formState, name: e.target.value})} />
+                             <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white focus:border-white transition-colors" value={formState.name} onChange={e => setFormState({...formState, name: e.target.value})} />
                           </div>
                           <div className="col-span-2 md:col-span-1">
                              <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">NIA</label>
-                             <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white uppercase" value={formState.nia} onChange={e => setFormState({...formState, nia: e.target.value})} />
+                             <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white uppercase focus:border-white transition-colors" value={formState.nia} onChange={e => setFormState({...formState, nia: e.target.value})} />
                           </div>
                       </div>
 
@@ -573,10 +616,9 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                       </div>
 
                       <div className="flex gap-3 pt-4">
-                          {editingId && <button onClick={() => { onDeletePartner(editingId); setIsModalOpen(false); }} className="p-2 text-red-500 hover:bg-red-900/20 rounded"><Trash2 size={16}/></button>}
                           <div className="flex-1 flex gap-3">
-                              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-2 text-zinc-400 text-xs font-bold">Cancel</button>
-                              <button onClick={handleSave} className="flex-1 py-2 bg-white text-black rounded text-xs font-bold hover:bg-zinc-200">Save</button>
+                              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-zinc-900 text-zinc-400 rounded-lg text-xs font-bold border border-zinc-800 hover:bg-zinc-800">Cancel</button>
+                              <button onClick={handleSave} className="flex-1 py-3 bg-white text-black rounded-lg text-xs font-bold hover:bg-zinc-200 shadow-glow transition-all">Save Partner</button>
                           </div>
                       </div>
                   </div>
