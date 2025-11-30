@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Business Ecosystem</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
     <script>
@@ -18,39 +18,53 @@
               sans: ['Inter', 'sans-serif'],
             },
             colors: {
-              background: 'hsl(var(--background))',
-              foreground: 'hsl(var(--foreground))',
-              card: 'hsl(var(--card))',
-              'card-foreground': 'hsl(var(--card-foreground))',
-              popover: 'hsl(var(--popover))',
-              'popover-foreground': 'hsl(var(--popover-foreground))',
-              primary: 'hsl(var(--primary))',
-              'primary-foreground': 'hsl(var(--primary-foreground))',
-              secondary: 'hsl(var(--secondary))',
-              'secondary-foreground': 'hsl(var(--secondary-foreground))',
-              muted: 'hsl(var(--muted))',
-              'muted-foreground': 'hsl(var(--muted-foreground))',
-              accent: 'hsl(var(--accent))',
-              'accent-foreground': 'hsl(var(--accent-foreground))',
-              destructive: 'hsl(var(--destructive))',
-              'destructive-foreground': 'hsl(var(--destructive-foreground))',
               border: 'hsl(var(--border))',
               input: 'hsl(var(--input))',
               ring: 'hsl(var(--ring))',
-              neon: '#6A8F73',
-              'neon-hover': '#55725c',
-              'bg-main': '#000000',
-              'bg-card': '#09090b',
+              background: 'hsl(var(--background))',
+              foreground: 'hsl(var(--foreground))',
+              primary: {
+                DEFAULT: 'hsl(var(--primary))',
+                foreground: 'hsl(var(--primary-foreground))',
+              },
+              secondary: {
+                DEFAULT: 'hsl(var(--secondary))',
+                foreground: 'hsl(var(--secondary-foreground))',
+              },
+              destructive: {
+                DEFAULT: 'hsl(var(--destructive))',
+                foreground: 'hsl(var(--destructive-foreground))',
+              },
+              muted: {
+                DEFAULT: 'hsl(var(--muted))',
+                foreground: 'hsl(var(--muted-foreground))',
+              },
+              accent: {
+                DEFAULT: 'hsl(var(--accent))',
+                foreground: 'hsl(var(--accent-foreground))',
+              },
+              popover: {
+                DEFAULT: 'hsl(var(--popover))',
+                foreground: 'hsl(var(--popover-foreground))',
+              },
+              card: {
+                DEFAULT: 'hsl(var(--card))',
+                foreground: 'hsl(var(--card-foreground))',
+              },
+              // Custom Theme Colors
+              neon: '#ffffff', // White for monochrome accent
+              'bg-main': '#09090b', // Zinc 950
+              'bg-card': '#18181b', // Zinc 900
             },
             boxShadow: {
               'glass': '0 0 0 1px rgba(255,255,255,0.08), 0 4px 20px -2px rgba(0,0,0,0.5)',
-              'glow': '0 0 20px -5px rgba(255,255,255,0.1)',
-              'neu-flat': '4px 4px 10px #050506, -4px -4px 10px #0d0d10',
-              'neu-pressed': 'inset 4px 4px 10px #050506, inset -4px -4px 10px #0d0d10',
+              'glow': '0 0 10px -2px rgba(255, 255, 255, 0.2)', // White Glow
+              'neu-flat': '4px 4px 10px #09090b, -4px -4px 10px #27272a',
+              'neu-pressed': 'inset 2px 2px 5px #09090b, inset -2px -2px 5px #27272a',
             },
             backgroundImage: {
               'gradient-obsidian': 'linear-gradient(to bottom right, #18181b, #09090b)',
-              'gradient-primary': 'linear-gradient(to bottom, #ffffff, #d4d4d8)',
+              'gradient-primary': 'linear-gradient(to bottom right, #ffffff, #d4d4d8)',
             },
             keyframes: {
               'scale-up': {
@@ -78,61 +92,84 @@
     <style>
       @layer base {
         :root {
-          --background: 0 0% 0%;
-          --foreground: 240 10% 3.9%;
-          --card: 240 10% 3.9%;
+          /* Zinc Theme Variables (Monochrome) */
+          --background: 240 10% 3.9%; /* Zinc 950 */
+          --foreground: 0 0% 98%; /* White */
+          
+          --card: 240 10% 3.9%; /* Zinc 950 */
           --card-foreground: 0 0% 98%;
+          
           --popover: 240 10% 3.9%;
           --popover-foreground: 0 0% 98%;
-          --primary: 0 0% 98%;
-          --primary-foreground: 240 5.9% 10%;
-          --secondary: 240 3.7% 15.9%;
+          
+          --primary: 0 0% 98%; /* White */
+          --primary-foreground: 240 5.9% 10%; /* Zinc 900 */
+          
+          --secondary: 240 3.7% 15.9%; /* Zinc 800 */
           --secondary-foreground: 0 0% 98%;
+          
           --muted: 240 3.7% 15.9%;
           --muted-foreground: 240 5% 64.9%;
+          
           --accent: 240 3.7% 15.9%;
           --accent-foreground: 0 0% 98%;
+          
           --destructive: 0 62.8% 30.6%;
           --destructive-foreground: 0 0% 98%;
-          --border: 240 3.7% 15.9%;
+          
+          --border: 240 3.7% 15.9%; /* Zinc 800 */
           --input: 240 3.7% 15.9%;
           --ring: 240 4.9% 83.9%;
+          
+          --radius: 0.5rem;
         }
       }
 
       body { 
         font-family: 'Inter', sans-serif; 
-        background-color: #000000; 
-        color: #fafafa;
+        background-color: #09090b; /* Zinc 950 */
+        color: #fafafa; /* Zinc 50 */
         -webkit-font-smoothing: antialiased;
       }
       
-      /* Ultra Thin Scrollbar */
+      /* Slim Scrollbar */
       ::-webkit-scrollbar { width: 6px; height: 6px; }
-      ::-webkit-scrollbar-track { background: #000000; }
+      ::-webkit-scrollbar-track { background: #09090b; }
       ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
-      ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+      ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
 
       .glass-panel {
-        background: rgba(9, 9, 11, 0.6);
+        background: rgba(24, 24, 27, 0.7); /* Zinc 900 with opacity */
         backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-
-      /* Custom utility for thin borders */
-      .border-thin {
-        border-width: 0.5px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       }
       
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #27272a;
+        border-radius: 4px;
+      }
+
       input, select, textarea {
-        background: #09090b !important; /* Zinc 950 */
+        background: #18181b !important; /* Zinc 900 */
         border: 1px solid #27272a !important; /* Zinc 800 */
+        color: #f4f4f5 !important; /* Zinc 100 */
         transition: border-color 0.2s, box-shadow 0.2s;
       }
       input:focus, select:focus, textarea:focus {
-        border-color: #52525b !important; /* Zinc 600 */
+        border-color: #a1a1aa !important; /* Zinc 400 */
         outline: none;
-        box-shadow: 0 0 0 1px #52525b;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+      
+      /* Subtle patterns */
+      .bg-grid {
+        background-size: 40px 40px;
+        background-image: linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                          linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
       }
     </style>
   <script type="importmap">
@@ -154,7 +191,7 @@
 </script>
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root" class="bg-grid min-h-screen"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

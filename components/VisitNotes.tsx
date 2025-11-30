@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { VisitNote, VisitStatus, Partner } from '../types';
 import { useAISummary, useAIAutoFillVisit, useAIImprovement } from '../services/ai/aiHooks';
 import { AIButton } from './AI/AIButtons';
-import { MapPin, Sparkles, ChevronDown, ChevronUp, Navigation, Calendar, Edit, CheckCircle, Clock, CalendarDays, History, TrendingUp, Trash2, Plus, X, Search } from 'lucide-react';
+import { MapPin, Sparkles, ChevronDown, ChevronUp, Navigation, Calendar, Edit, CheckCircle, Clock, Trash2, Plus, X } from 'lucide-react';
 
 interface VisitNotesProps {
   visits: VisitNote[];
@@ -102,36 +102,12 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
       let formattedMapLink = '';
       
       if (p.coordinates) {
-          // Robustly parse lat, long.
-          // Handle cases like "-6,200, 106,800" (comma decimals) or "-6.200, 106.800" (dot decimals)
+          const parts = p.coordinates.split(',').map(s => s.trim());
           let lat = '', lng = '';
           
-          // First, remove any whitespace to make splitting predictable
-          // But wait, split by ", " (comma space) is a good heuristic if the data is clean.
-          // Let's try to normalize to dots first.
-          
-          // Split by comma
-          const parts = p.coordinates.split(',').map(s => s.trim());
-          
           if (parts.length === 2) {
-             // Standard "lat, lng" or "lat,lng"
-             // Replace decimal commas with dots
              lat = parts[0].replace(',', '.').replace(/[^\d.-]/g, '');
              lng = parts[1].replace(',', '.').replace(/[^\d.-]/g, '');
-          } else if (parts.length > 2) {
-             // Messy case: "-6,200, 106,800" -> ["-6", "200", "106", "800"]
-             // This happens if CSV import failed to clean up.
-             // We can try to reconstruct:
-             // Assume first two parts are Lat, next two are Lng?
-             // Or better, just rely on the new PartnerManager logic which cleans this up.
-             
-             // Fallback heuristic:
-             // Find the space?
-             const partsSpace = p.coordinates.split(/\s+/);
-             if (partsSpace.length === 2) {
-                 lat = partsSpace[0].replace(',', '.').replace(/[^\d.-]/g, '');
-                 lng = partsSpace[1].replace(',', '.').replace(/[^\d.-]/g, '');
-             }
           }
           
           if (lat && lng && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
@@ -211,7 +187,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
     if (!formState.partnerName) return;
     const newVisit: VisitNote = {
       id: editingId || Math.random().toString(36).substring(7),
-      partnerName: toTitleCase(formState.partnerName!), // Force Title Case
+      partnerName: toTitleCase(formState.partnerName!), 
       googleMapsLink: formState.googleMapsLink || '',
       coordinates: formState.coordinates || '',
       visitDatePlan: formState.visitDatePlan || '',
@@ -219,9 +195,9 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
       visitDateActual: formState.visitDateActual || '',
       ordersLastMonth: Number(formState.ordersLastMonth) || 0,
       ordersDailyAvg: Number(formState.ordersDailyAvg) || 0,
-      findings: toSentenceCase(formState.findings || ''), // Force Sentence Case
-      operationalIssues: toSentenceCase(formState.operationalIssues || ''), // Force Sentence Case
-      suggestions: toSentenceCase(formState.suggestions || ''), // Force Sentence Case
+      findings: toSentenceCase(formState.findings || ''), 
+      operationalIssues: toSentenceCase(formState.operationalIssues || ''), 
+      suggestions: toSentenceCase(formState.suggestions || ''), 
       summary: formState.summary || '',
       status: (formState.status as VisitStatus) || 'PLANNED'
     };
@@ -253,16 +229,16 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
 
   return (
     <div className="max-w-5xl mx-auto pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 border-b border-white/10 pb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 border-b border-zinc-800 pb-6">
         <div>
-          <h2 className="text-2xl font-light text-white tracking-tight">Visits</h2>
-          <p className="text-zinc-500 text-xs mt-1">Field reports.</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Visits</h2>
+          <p className="text-zinc-500 text-sm mt-1">Field reports & planning.</p>
         </div>
         <button 
           onClick={() => {
             if(isFormOpen) resetForm(); else setIsFormOpen(true);
           }}
-          className="bg-white text-black px-4 py-2 rounded-md text-xs font-medium shadow-glow hover:bg-zinc-200 transition-colors flex items-center gap-2"
+          className="bg-white text-black px-4 py-2 rounded-lg text-xs font-bold shadow-glow hover:bg-zinc-200 transition-colors flex items-center gap-2"
         >
           {isFormOpen ? <X size={14} /> : <Plus size={14} />}
           {isFormOpen ? 'Close' : 'New Visit'}
@@ -271,18 +247,18 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
 
       {/* Input Form */}
       {isFormOpen && (
-        <div className="glass-panel p-6 rounded-xl mb-10 animate-fade-in-down">
-          <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-             <h3 className="text-lg font-medium text-white">
+        <div className="glass-panel p-6 rounded-2xl mb-10 animate-fade-in-down border border-zinc-700">
+          <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
+             <h3 className="text-lg font-bold text-white">
                 {editingId ? (formState.status === 'DONE' ? 'Edit History' : 'Edit Plan') : 'New Visit Plan'}
              </h3>
           </div>
           
           {!editingId && (
-            <div className="bg-zinc-900/30 p-4 rounded-lg border border-white/10 mb-6">
+            <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 mb-6">
                <div className="flex gap-2 items-start">
                   <textarea 
-                    className="flex-1 bg-transparent border-none text-white text-sm outline-none h-12 resize-none placeholder-zinc-600"
+                    className="flex-1 bg-transparent border-none text-zinc-200 text-sm outline-none h-12 resize-none placeholder-zinc-500"
                     placeholder="AI Paste: 'Partner ABC at Jl. Sudirman, needs printer check...'"
                     value={rawInput}
                     onChange={(e) => setRawInput(e.target.value)}
@@ -296,7 +272,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
             <div className="relative">
               <label className="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Partner Name</label>
               <input 
-                className="w-full bg-black text-white rounded-md p-3 border border-white/10 focus:border-white text-sm capitalize"
+                className="w-full bg-zinc-950 text-white rounded-lg p-3 border border-zinc-800 focus:border-zinc-500 text-sm capitalize"
                 value={formState.partnerName}
                 onChange={e => {
                     setFormState({...formState, partnerName: e.target.value});
@@ -307,15 +283,15 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
                 placeholder="Type to search partner..."
               />
               {showPartnerSuggestions && suggestedPartners.length > 0 && (
-                  <div className="absolute top-full left-0 w-full bg-black border border-zinc-700 rounded-md mt-1 z-20 shadow-xl max-h-40 overflow-y-auto">
+                  <div className="absolute top-full left-0 w-full bg-zinc-900 border border-zinc-700 rounded-lg mt-1 z-20 shadow-xl max-h-40 overflow-y-auto">
                       {suggestedPartners.map(p => (
                           <div 
                             key={p.id} 
-                            className="p-2 text-sm text-zinc-300 hover:bg-zinc-800 cursor-pointer flex justify-between"
+                            className="p-3 text-sm text-zinc-300 hover:bg-zinc-800 cursor-pointer flex justify-between border-b border-zinc-800/50 last:border-0"
                             onClick={() => handleSelectPartner(p)}
                           >
-                              <span>{p.name}</span>
-                              <span className="text-[10px] text-zinc-600 uppercase">{p.district}</span>
+                              <span className="font-medium">{p.name}</span>
+                              <span className="text-[10px] text-zinc-500 uppercase">{p.district}</span>
                           </div>
                       ))}
                   </div>
@@ -325,7 +301,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
                <div>
                   <label className="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Coordinates</label>
                   <input 
-                    className="w-full bg-black text-white rounded-md p-3 border border-white/10 text-sm"
+                    className="w-full bg-zinc-950 text-white rounded-lg p-3 border border-zinc-800 text-sm"
                     placeholder="-6.200, 106.800"
                     value={formState.coordinates}
                     onChange={e => setFormState({...formState, coordinates: e.target.value})}
@@ -334,7 +310,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
                <div>
                   <label className="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Maps Link</label>
                   <input 
-                    className="w-full bg-black text-white rounded-md p-3 border border-white/10 text-sm"
+                    className="w-full bg-zinc-950 text-white rounded-lg p-3 border border-zinc-800 text-sm"
                     placeholder="https://maps..."
                     value={formState.googleMapsLink}
                     onChange={e => setFormState({...formState, googleMapsLink: e.target.value})}
@@ -344,56 +320,56 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-             <div className="border border-white/10 p-4 rounded-lg">
+             <div className="border border-zinc-800 p-4 rounded-xl bg-zinc-900/30">
                 <h4 className="text-[10px] font-bold text-zinc-400 mb-3 uppercase">Schedule</h4>
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-600 mb-1">PLAN DATE</label>
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">PLAN DATE</label>
                     <input 
                       type="date"
-                      className="w-full bg-black text-white rounded-md p-2 text-xs border border-white/10"
+                      className="w-full bg-zinc-950 text-white rounded-lg p-2 text-xs border border-zinc-800"
                       value={formState.visitDatePlan}
                       onChange={e => setFormState({...formState, visitDatePlan: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-600 mb-1">TIME (OPTIONAL)</label>
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">TIME (OPTIONAL)</label>
                     <input 
                       type="time"
-                      className="w-full bg-black text-white rounded-md p-2 text-xs border border-white/10"
+                      className="w-full bg-zinc-950 text-white rounded-lg p-2 text-xs border border-zinc-800"
                       value={formState.visitTime || ''}
                       onChange={e => setFormState({...formState, visitTime: e.target.value})}
                     />
                   </div>
                 </div>
                 <div>
-                    <label className="block text-[10px] font-bold text-zinc-600 mb-1">ACTUAL DATE (DONE)</label>
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">ACTUAL DATE (DONE)</label>
                     <input 
                       type="date"
-                      className="w-full bg-black text-white rounded-md p-2 text-xs border border-white/10"
+                      className="w-full bg-zinc-950 text-white rounded-lg p-2 text-xs border border-zinc-800"
                       value={formState.visitDateActual}
                       onChange={e => setFormState({...formState, visitDateActual: e.target.value})}
                     />
                 </div>
              </div>
-             <div className="border border-white/10 p-4 rounded-lg">
+             <div className="border border-zinc-800 p-4 rounded-xl bg-zinc-900/30">
                 <h4 className="text-[10px] font-bold text-zinc-400 mb-3 uppercase">Metrics</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-600 mb-1">ORDERS (MO)</label>
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">ORDERS (MO)</label>
                     <input 
                       type="number"
-                      className="w-full bg-black text-white rounded-md p-2 text-xs border border-white/10"
+                      className="w-full bg-zinc-950 text-white rounded-lg p-2 text-xs border border-zinc-800"
                       value={formState.ordersLastMonth}
                       onChange={e => setFormState({...formState, ordersLastMonth: parseInt(e.target.value)})}
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-600 mb-1">AVG / DAY</label>
+                    <label className="block text-[10px] font-bold text-zinc-500 mb-1">AVG / DAY</label>
                     <input 
                       type="number"
                       step="0.1"
-                      className="w-full bg-black text-white rounded-md p-2 text-xs border border-white/10"
+                      className="w-full bg-zinc-950 text-white rounded-lg p-2 text-xs border border-zinc-800"
                       value={formState.ordersDailyAvg}
                       onChange={e => setFormState({...formState, ordersDailyAvg: parseFloat(e.target.value)})}
                     />
@@ -407,7 +383,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
                <div key={field}>
                  <label className="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">{field.replace(/([A-Z])/g, ' $1')}</label>
                  <textarea 
-                   className="w-full bg-black text-white rounded-md p-3 border border-white/10 text-sm h-20 resize-none focus:border-white"
+                   className="w-full bg-zinc-950 text-white rounded-lg p-3 border border-zinc-800 text-sm h-20 resize-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all"
                    // @ts-ignore
                    value={formState[field]}
                    // @ts-ignore
@@ -418,7 +394,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
           </div>
 
           {/* AI Summary Section */}
-          <div className="bg-zinc-900/30 p-4 rounded-lg border border-white/10 mb-6">
+          <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 mb-6">
             <div className="flex justify-between items-center mb-3">
               <h4 className="text-[10px] font-bold text-zinc-400 flex items-center gap-2 uppercase tracking-wider">
                 <Sparkles size={12} /> AI Summary
@@ -426,7 +402,7 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
               <AIButton onClick={handleGenerateSummary} loading={summaryLoading} label="Generate" size="sm" variant="secondary" />
             </div>
             <textarea 
-              className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-sm text-zinc-300 min-h-[80px] outline-none"
+              className="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 min-h-[80px] outline-none"
               placeholder="..."
               value={formState.summary}
               readOnly
@@ -434,8 +410,8 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
           </div>
 
           <div className="flex justify-end gap-3">
-            <button onClick={resetForm} className="px-4 py-2 text-xs font-medium text-zinc-500 hover:text-white">Cancel</button>
-            <button onClick={handleSubmit} disabled={!formState.partnerName} className="px-5 py-2 bg-white text-black rounded-md text-xs font-bold hover:bg-zinc-200 transition-colors disabled:opacity-50">
+            <button onClick={resetForm} className="px-4 py-2 text-xs font-bold text-zinc-500 hover:text-white">Cancel</button>
+            <button onClick={handleSubmit} disabled={!formState.partnerName} className="px-5 py-2 bg-white text-black rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-glow">
               {editingId ? 'Update' : 'Save'}
             </button>
           </div>
@@ -443,17 +419,17 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
       )}
 
       {/* Tabs */}
-      <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-1">
+      <div className="flex items-center justify-between mb-6 border-b border-zinc-800 pb-1">
          <div className="flex gap-6">
             <button 
                onClick={() => setActiveTab('PLANNED')}
-               className={`pb-3 text-xs font-semibold tracking-wider border-b-2 transition-all ${activeTab === 'PLANNED' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+               className={`pb-3 text-xs font-bold tracking-wider border-b-2 transition-all ${activeTab === 'PLANNED' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
             >
                PLANNED
             </button>
             <button 
                onClick={() => setActiveTab('HISTORY')}
-               className={`pb-3 text-xs font-semibold tracking-wider border-b-2 transition-all ${activeTab === 'HISTORY' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+               className={`pb-3 text-xs font-bold tracking-wider border-b-2 transition-all ${activeTab === 'HISTORY' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
             >
                HISTORY
             </button>
@@ -462,12 +438,12 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
          <div className="flex items-center gap-2 pb-2">
             <input 
                type="date" 
-               className="bg-transparent border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-300 outline-none"
+               className="bg-transparent border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-zinc-500"
                value={filterDate}
                onChange={(e) => setFilterDate(e.target.value)}
             />
             {filterDate && (
-               <button onClick={() => setFilterDate('')} className="text-xs text-red-500"><X size={14}/></button>
+               <button onClick={() => setFilterDate('')} className="text-xs text-rose-500"><X size={14}/></button>
             )}
          </div>
       </div>
@@ -475,37 +451,37 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
       {/* List */}
       <div className="space-y-3">
         {filteredVisits.length === 0 ? (
-           <div className="text-center py-16 text-zinc-600 bg-black/20 rounded-xl border border-dashed border-zinc-800">
+           <div className="text-center py-16 text-zinc-600 bg-zinc-900/50 rounded-xl border border-dashed border-zinc-800 italic">
               {activeTab === 'PLANNED' ? 'No scheduled visits.' : 'History empty.'}
            </div>
         ) : (
            filteredVisits.map(visit => (
-             <div key={visit.id} className="glass-panel rounded-lg overflow-hidden hover:bg-zinc-900/20 transition-colors">
+             <div key={visit.id} className="glass-panel rounded-xl overflow-hidden hover:bg-zinc-800/40 transition-colors border border-zinc-800">
                <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                  <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => setExpandedId(expandedId === visit.id ? null : visit.id)}>
-                   <div className={`p-3 rounded-md border ${visit.status === 'DONE' ? 'border-white/20 text-white bg-white/5' : 'border-zinc-700 text-zinc-500 bg-black'}`}>
-                     <MapPin size={18} />
+                   <div className={`p-3 rounded-xl border ${visit.status === 'DONE' ? 'border-emerald-500/20 text-emerald-500 bg-emerald-500/10' : 'border-zinc-700 text-zinc-500 bg-zinc-900'}`}>
+                     <MapPin size={20} />
                    </div>
                    <div>
                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-zinc-100">{visit.partnerName}</h3>
-                        {visit.status === 'RESCHEDULED' && <span className="text-[9px] bg-amber-900/30 text-amber-500 px-1.5 py-0.5 rounded border border-amber-900">Rescheduled</span>}
+                        <h3 className="text-sm font-bold text-zinc-200">{visit.partnerName}</h3>
+                        {visit.status === 'RESCHEDULED' && <span className="text-[9px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 font-bold">Rescheduled</span>}
                      </div>
-                     <div className="flex items-center gap-3 mt-1">
-                       <span className="text-xs text-zinc-500 flex items-center gap-1 font-light">
-                         <Calendar size={10}/> 
+                     <div className="flex items-center gap-3 mt-1.5">
+                       <span className="text-xs text-zinc-500 flex items-center gap-1 font-medium">
+                         <Calendar size={12}/> 
                          {visit.status === 'DONE' 
                            ? `${new Date(visit.visitDateActual).toLocaleDateString('en-CA')}`
                            : `${visit.visitDatePlan || 'Unscheduled'}`
                          }
                          {visit.visitTime && visit.status !== 'DONE' && (
-                            <span className="flex items-center gap-1 text-zinc-400">
+                            <span className="flex items-center gap-1 text-zinc-400 ml-2">
                                 @ {visit.visitTime}
                             </span>
                          )}
                        </span>
                        {visit.ordersLastMonth > 0 && (
-                         <span className="text-[9px] text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded-full">
+                         <span className="text-[9px] text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded-full bg-zinc-900">
                            {visit.ordersLastMonth} Orders
                          </span>
                        )}
@@ -516,35 +492,35 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
                  <div className="flex items-center gap-2 self-end sm:self-auto">
                     {visit.status !== 'DONE' ? (
                        <>
-                         <button onClick={(e) => handleRescheduleClick(e, visit.id)} className="p-2 hover:bg-zinc-800 rounded-md text-zinc-400 transition-colors" title="Reschedule"><Clock size={14}/></button>
-                         <button onClick={(e) => handleEdit(e, visit)} className="p-2 hover:bg-zinc-800 rounded-md text-zinc-400 transition-colors" title="Edit"><Edit size={14}/></button>
-                         <button onClick={(e) => handleDelete(e, visit.id)} className="p-2 hover:bg-red-900/20 rounded-md text-zinc-600 hover:text-red-500 transition-colors" title="Delete"><Trash2 size={14}/></button>
-                         <button onClick={(e) => handleMarkDone(e, visit)} className="text-xs flex items-center gap-1 bg-white text-black px-3 py-1.5 rounded-md font-semibold hover:bg-zinc-200 transition-colors"><CheckCircle size={12}/> Done</button>
+                         <button onClick={(e) => handleRescheduleClick(e, visit.id)} className="p-2 hover:bg-zinc-700 rounded-lg text-zinc-400 transition-colors" title="Reschedule"><Clock size={16}/></button>
+                         <button onClick={(e) => handleEdit(e, visit)} className="p-2 hover:bg-zinc-700 rounded-lg text-zinc-400 transition-colors" title="Edit"><Edit size={16}/></button>
+                         <button onClick={(e) => handleDelete(e, visit.id)} className="p-2 hover:bg-rose-500/10 rounded-lg text-zinc-500 hover:text-rose-500 transition-colors" title="Delete"><Trash2 size={16}/></button>
+                         <button onClick={(e) => handleMarkDone(e, visit)} className="text-xs flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-500 hover:text-white transition-colors"><CheckCircle size={14}/> Done</button>
                        </>
                     ) : (
-                       <button onClick={(e) => handleEdit(e, visit)} className="text-xs flex items-center gap-1 text-zinc-500 hover:text-white px-3 py-1.5 rounded-md border border-zinc-800 hover:border-zinc-600 transition-colors">
+                       <button onClick={(e) => handleEdit(e, visit)} className="text-xs flex items-center gap-1 text-zinc-500 hover:text-white px-3 py-1.5 rounded-lg border border-zinc-800 hover:border-zinc-600 transition-colors font-medium">
                           Details
                        </button>
                     )}
-                    <button onClick={() => setExpandedId(expandedId === visit.id ? null : visit.id)} className="p-2 hover:bg-zinc-800 rounded-md text-zinc-500 transition-colors">
-                       {expandedId === visit.id ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                    <button onClick={() => setExpandedId(expandedId === visit.id ? null : visit.id)} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors">
+                       {expandedId === visit.id ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}
                     </button>
                  </div>
                </div>
 
                {expandedId === visit.id && (
-                 <div className="p-5 border-t border-white/10 bg-black/40 space-y-4 text-sm text-zinc-400">
+                 <div className="p-5 border-t border-zinc-800 bg-zinc-900/30 space-y-4 text-sm text-zinc-400">
                    <div className="flex flex-wrap gap-3 mb-4">
                       {visit.googleMapsLink && (
-                         <a href={visit.googleMapsLink} target="_blank" className="text-xs flex items-center gap-1 text-zinc-300 hover:text-white bg-zinc-900 px-3 py-1.5 rounded border border-zinc-700"><Navigation size={12}/> Open Maps</a>
+                         <a href={visit.googleMapsLink} target="_blank" className="text-xs flex items-center gap-1 text-zinc-400 hover:text-white bg-zinc-500/10 px-3 py-1.5 rounded-lg border border-zinc-500/20 transition-colors font-medium"><Navigation size={12}/> Open Maps</a>
                       )}
-                      {visit.coordinates && (<span className="text-xs text-zinc-500 border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 rounded">Coords: {visit.coordinates}</span>)}
+                      {visit.coordinates && (<span className="text-xs text-zinc-500 border border-zinc-800 bg-zinc-950 px-3 py-1.5 rounded-lg font-mono">Coords: {visit.coordinates}</span>)}
                    </div>
                    
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      {['findings', 'operationalIssues', 'suggestions'].map((k) => (
-                        <div key={k} className="bg-black border border-white/10 p-3 rounded-md">
-                          <span className="text-[10px] font-bold text-zinc-600 uppercase block mb-2 border-b border-zinc-900 pb-1">{k}</span>
+                        <div key={k} className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl">
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase block mb-2 border-b border-zinc-900 pb-2">{k}</span>
                           {/* @ts-ignore */}
                           <p className="text-xs text-zinc-300 leading-relaxed">{visit[k] || '-'}</p>
                         </div>
@@ -552,13 +528,13 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
                    </div>
 
                    {visit.summary && (
-                     <div className="bg-zinc-900/20 p-3 rounded-md border border-zinc-800 mt-4">
-                       <span className="font-bold text-zinc-500 block mb-1 text-[10px] uppercase flex items-center gap-2"><Sparkles size={10}/> Summary</span>
-                       <p className="text-xs italic text-zinc-400">{visit.summary}</p>
+                     <div className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-700 mt-4">
+                       <span className="font-bold text-zinc-400 block mb-1 text-[10px] uppercase flex items-center gap-2"><Sparkles size={12}/> Summary</span>
+                       <p className="text-xs italic text-zinc-300">{visit.summary}</p>
                      </div>
                    )}
                    <div className="mt-2">
-                      <AIButton onClick={() => handleImprovement(visit)} loading={improveLoading} label="Strategy" size="sm" variant="secondary" icon={TrendingUp} />
+                      <AIButton onClick={() => handleImprovement(visit)} loading={improveLoading} label="Strategy" size="sm" variant="secondary" />
                    </div>
                  </div>
                )}
@@ -568,13 +544,13 @@ const VisitNotes: React.FC<VisitNotesProps> = ({ visits, partners, onSaveVisit, 
       </div>
 
       {rescheduleId && (
-         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center backdrop-blur-sm">
-            <div className="glass-panel p-6 rounded-xl shadow-2xl w-full max-w-sm">
+         <div className="fixed inset-0 bg-zinc-950/90 z-50 flex items-center justify-center backdrop-blur-sm">
+            <div className="glass-panel p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-zinc-800">
                <h3 className="text-sm font-bold mb-4 text-white uppercase tracking-widest">Reschedule</h3>
-               <input type="date" className="w-full bg-black text-white border border-white/10 rounded-md p-3 mb-6 outline-none text-sm" value={newDate} onChange={e => setNewDate(e.target.value)} />
+               <input type="date" className="w-full bg-zinc-950 text-white border border-zinc-800 rounded-xl p-3 mb-6 outline-none text-sm" value={newDate} onChange={e => setNewDate(e.target.value)} />
                <div className="flex gap-3">
-                  <button onClick={() => setRescheduleId(null)} className="flex-1 py-2 border border-zinc-700 rounded-md hover:bg-zinc-900 text-zinc-400 text-xs font-medium">Cancel</button>
-                  <button onClick={handleReschedule} disabled={!newDate} className="flex-1 py-2 bg-white text-black rounded-md hover:bg-zinc-200 disabled:opacity-50 text-xs font-bold">Confirm</button>
+                  <button onClick={() => setRescheduleId(null)} className="flex-1 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-400 text-xs font-bold">Cancel</button>
+                  <button onClick={handleReschedule} disabled={!newDate} className="flex-1 py-2 bg-white text-black rounded-lg hover:bg-zinc-200 disabled:opacity-50 text-xs font-bold shadow-glow">Confirm</button>
                </div>
             </div>
          </div>

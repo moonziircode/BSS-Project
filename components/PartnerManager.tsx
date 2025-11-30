@@ -1,8 +1,7 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Partner } from '../types';
-import { Plus, Trash2, Sparkles, Download, MapPin, Navigation, Edit, Upload, Filter, Search, X, MoreHorizontal, FileSpreadsheet } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { Plus, Trash2, Sparkles, Download, MapPin, Navigation, Edit, Upload, Filter, Search, X, MoreHorizontal, FileSpreadsheet, CheckSquare, Square, ListFilter } from 'lucide-react';
 import { useAIPartnerAnalysis } from '../services/ai/aiHooks';
 import { AIButton } from './AI/AIButtons';
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
@@ -17,7 +16,7 @@ interface PartnerManagerProps {
 const containerStyle = {
   width: '100%',
   height: '600px', // Taller map for better visibility
-  borderRadius: '0.75rem',
+  borderRadius: '1rem',
 };
 
 const defaultCenter = {
@@ -31,13 +30,13 @@ const mapOptions = {
   mapTypeControl: false,
   streetViewControl: false,
   styles: [
-    { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
-    { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-    { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-    { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
-    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
-    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
-    { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
+    { elementType: "geometry", stylers: [{ color: "#18181b" }] }, // Zinc 900
+    { elementType: "labels.text.stroke", stylers: [{ color: "#18181b" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#a1a1aa" }] }, // Zinc 400
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#27272a" }] }, // Zinc 800
+    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#27272a" }] },
+    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#71717a" }] }, // Zinc 500
+    { featureType: "water", elementType: "geometry", stylers: [{ color: "#09090b" }] }, // Zinc 950
   ],
 };
 
@@ -108,6 +107,11 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [showFilters, setShowFilters] = useState(false);
 
+  // Specific Selection State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
+  const [selectionSearch, setSelectionSearch] = useState('');
+
   const { run: runAnalysis, loading: analyzing } = useAIPartnerAnalysis();
   
   const defaultFormState: Partial<Partner> = {
@@ -131,7 +135,7 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
 
   const [formState, setFormState] = useState<Partial<Partner>>(defaultFormState);
 
-  // --- CSV IMPORT LOGIC (IMPROVED) ---
+  // --- CSV IMPORT LOGIC ---
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -141,10 +145,9 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
       const text = e.target?.result as string;
       if (!text) return;
 
-      const lines = text.split(/\r?\n/); // Handle both \n and \r\n
+      const lines = text.split(/\r?\n/);
       if (lines.length < 2) return;
 
-      // Header Mapping (Case Insensitive)
       const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/['"]+/g, ''));
       
       const findIndex = (keywords: string[]) => {
@@ -178,22 +181,15 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
         if (!line) continue;
         
         const row = parseCSVLine(line);
-        
-        // Safety check for critical fields
         const name = idxName > -1 ? row[idxName] : '';
         if (!name) continue;
 
-        // Combine Lat/Long accurately
         let coordinates = '';
         if (idxLat > -1 && idxLong > -1 && row[idxLat] && row[idxLong]) {
-            // Intelligent cleanup: 
-            // 1. Replace ',' with '.' (Indonesian/European decimal format)
-            // 2. Remove anything that isn't a digit, dot, or minus sign
             const cleanLat = row[idxLat].replace(',', '.').replace(/[^\d.-]/g, '');
             const cleanLng = row[idxLong].replace(',', '.').replace(/[^\d.-]/g, '');
             
             if (cleanLat && cleanLng && !isNaN(Number(cleanLat)) && !isNaN(Number(cleanLng))) {
-                // Ensure we store it with a standardized separator
                 coordinates = `${cleanLat}, ${cleanLng}`;
             }
         }
@@ -217,7 +213,6 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
            stagingCode: idxStaging > -1 ? row[idxStaging] : '',
            openingHour: idxOpen > -1 ? row[idxOpen] : '',
            closingHour: idxClose > -1 ? row[idxClose] : '',
-           // Default metrics
            volumeM3: 0,
            volumeM2: 0,
            volumeM1: 0,
@@ -227,7 +222,6 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
         onSavePartner(newPartner);
         importCount++;
       }
-      
       alert(`Import Success: ${importCount} partners added.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -240,6 +234,11 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
   const uniqueServiceTypes = useMemo(() => Array.from(new Set(partners.map(p => p.serviceType).filter(Boolean))).sort(), [partners]);
 
   const filteredPartners = useMemo(() => {
+     // PRIORITY: If specific partners are selected, ONLY show them. Ignore other filters.
+     if (selectedIds.length > 0) {
+         return partners.filter(p => selectedIds.includes(p.id));
+     }
+
      return partners.filter(p => {
         const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
                             p.ownerName.toLowerCase().includes(search.toLowerCase()) ||
@@ -251,7 +250,7 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
         
         return matchSearch && matchCity && matchDistrict && matchService && matchStatus;
      });
-  }, [partners, search, filterCity, filterDistrict, filterService, filterStatus]);
+  }, [partners, search, filterCity, filterDistrict, filterService, filterStatus, selectedIds]);
 
   const getStatus = (m1: number, m2: number) => {
     if (m1 > m2 * 1.1) return 'GROWTH';
@@ -317,13 +316,19 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
     document.body.removeChild(link);
   };
 
+  const toggleSelection = (id: string) => {
+      setSelectedIds(prev => 
+          prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+      );
+  };
+
   return (
     <div className="space-y-6 pb-20">
-       <header className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-white/10 pb-6">
+       <header className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-zinc-800 pb-6">
           <div>
-             <h2 className="text-3xl font-light text-white tracking-tight">Partner Ecosystem</h2>
+             <h2 className="text-3xl font-bold text-white tracking-tight">Partner Ecosystem</h2>
              <p className="text-zinc-500 text-xs mt-1">
-                 {filteredPartners.length} Active Partners • {uniqueCities.length} Cities
+                 {filteredPartners.length} Visible Partners • {selectedIds.length > 0 ? 'Specific Selection Active' : `${uniqueCities.length} Cities`}
              </p>
           </div>
           <div className="flex gap-2 items-center flex-wrap justify-end">
@@ -334,15 +339,15 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
               onChange={handleFileUpload}
               className="hidden"
             />
-            <button onClick={() => fileInputRef.current?.click()} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 hover:text-white hover:border-zinc-600 transition-colors">
+            <button onClick={() => fileInputRef.current?.click()} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:text-white hover:border-zinc-600 transition-colors">
                 <Upload size={14}/> Import CSV
             </button>
-            <button onClick={handleExportCSV} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 hover:text-white hover:border-zinc-600 transition-colors">
+            <button onClick={handleExportCSV} className="bg-zinc-900 text-zinc-400 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:text-white hover:border-zinc-600 transition-colors">
                 <Download size={14}/> Export
             </button>
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-1 flex">
-                <button onClick={() => setActiveTab('LIST')} className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${activeTab === 'LIST' ? 'bg-white text-black shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>List</button>
-                <button onClick={() => setActiveTab('MAP')} className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${activeTab === 'MAP' ? 'bg-white text-black shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>Map</button>
+                <button onClick={() => setActiveTab('LIST')} className={`px-3 py-1.5 text-xs font-bold rounded transition-all ${activeTab === 'LIST' ? 'bg-white text-black shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>List</button>
+                <button onClick={() => setActiveTab('MAP')} className={`px-3 py-1.5 text-xs font-bold rounded transition-all ${activeTab === 'MAP' ? 'bg-white text-black shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>Map</button>
             </div>
             <button onClick={handleOpenAdd} className="bg-white text-black px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-zinc-200 transition-colors shadow-glow">
                 <Plus size={14}/> Add New
@@ -350,51 +355,121 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
           </div>
        </header>
 
-       {/* FILTERS */}
-       <div className="glass-panel p-4 rounded-xl border border-white/10 space-y-4">
-          <div className="flex items-center justify-between">
+       {/* FILTERS BAR */}
+       <div className="glass-panel p-4 rounded-xl border border-zinc-700 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+              
+              {/* Main Search */}
               <div className="flex-1 max-w-md relative">
                 <input 
-                    className="w-full bg-black border border-white/10 rounded-lg pl-9 pr-2 py-2.5 text-xs text-white placeholder-zinc-600 focus:border-white transition-colors" 
-                    placeholder="Search Partner Name, NIA, or Owner..."
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-2 py-2.5 text-xs text-white placeholder-zinc-600 focus:border-zinc-500 transition-colors" 
+                    placeholder="Search visible partners..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
+                    disabled={selectedIds.length > 0} // Disable search if manual selection is active
                 />
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"/>
               </div>
+
+              {/* SPECIFIC SELECTION DROPDOWN */}
+              <div className="relative">
+                  <button 
+                    onClick={() => setShowSelectionDropdown(!showSelectionDropdown)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-bold transition-colors ${
+                        selectedIds.length > 0 
+                        ? 'bg-white text-black border-white' 
+                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <ListFilter size={14} />
+                    {selectedIds.length > 0 ? `${selectedIds.length} Selected` : 'Select Specific'}
+                    {selectedIds.length > 0 && (
+                        <span 
+                            onClick={(e) => { e.stopPropagation(); setSelectedIds([]); }} 
+                            className="ml-1 p-0.5 hover:bg-zinc-200 rounded-full"
+                            title="Clear Selection"
+                        >
+                            <X size={12} />
+                        </span>
+                    )}
+                  </button>
+
+                  {/* Dropdown Content */}
+                  {showSelectionDropdown && (
+                      <div className="absolute top-full right-0 mt-2 w-72 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-scale-up">
+                          <div className="p-3 border-b border-zinc-800">
+                              <input 
+                                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-xs text-white placeholder-zinc-600"
+                                  placeholder="Find partner to select..."
+                                  value={selectionSearch}
+                                  onChange={e => setSelectionSearch(e.target.value)}
+                                  autoFocus
+                              />
+                          </div>
+                          <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                              {partners
+                                  .filter(p => p.name.toLowerCase().includes(selectionSearch.toLowerCase()))
+                                  .map(p => (
+                                      <div 
+                                          key={p.id} 
+                                          onClick={() => toggleSelection(p.id)}
+                                          className="flex items-center gap-3 p-3 hover:bg-zinc-800 cursor-pointer border-b border-zinc-800/50 last:border-0"
+                                      >
+                                          <div className={`text-zinc-500 ${selectedIds.includes(p.id) ? 'text-emerald-500' : ''}`}>
+                                              {selectedIds.includes(p.id) ? <CheckSquare size={16} /> : <Square size={16} />}
+                                          </div>
+                                          <div className="flex-1 overflow-hidden">
+                                              <div className="text-xs font-bold text-zinc-200 truncate">{p.name}</div>
+                                              <div className="text-[10px] text-zinc-500 truncate">{p.city}</div>
+                                          </div>
+                                      </div>
+                                  ))
+                              }
+                              {partners.filter(p => p.name.toLowerCase().includes(selectionSearch.toLowerCase())).length === 0 && (
+                                  <div className="p-4 text-center text-xs text-zinc-500 italic">No partners found</div>
+                              )}
+                          </div>
+                          <div className="p-2 bg-zinc-950 border-t border-zinc-800 flex justify-between items-center text-[10px] text-zinc-500 px-3">
+                              <span>{selectedIds.length} partners checked</span>
+                              <button onClick={() => setSelectedIds([])} className="hover:text-white">Clear All</button>
+                          </div>
+                      </div>
+                  )}
+              </div>
               
-              <div className="flex items-center gap-2 cursor-pointer ml-4" onClick={() => setShowFilters(!showFilters)}>
+              {/* GENERAL FILTERS TOGGLE */}
+              <div className="flex items-center gap-2 cursor-pointer border-l border-zinc-800 pl-4" onClick={() => setShowFilters(!showFilters)}>
                   <Filter size={14} className={showFilters ? "text-white" : "text-zinc-500"} />
                   <span className={`text-xs font-bold uppercase tracking-wider ${showFilters ? "text-white" : "text-zinc-500"}`}>Filters</span>
               </div>
           </div>
           
           {showFilters && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in-down border-t border-white/5 pt-4">
+              <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in-down border-t border-zinc-800 pt-4 ${selectedIds.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                   <div>
-                      <label className="block text-[9px] text-zinc-500 uppercase mb-1">City</label>
-                      <select className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white outline-none" value={filterCity} onChange={e => setFilterCity(e.target.value)}>
+                      <label className="block text-[9px] text-zinc-500 uppercase mb-1 font-bold">City</label>
+                      <select className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white outline-none" value={filterCity} onChange={e => setFilterCity(e.target.value)}>
                           <option value="ALL">All Cities</option>
                           {uniqueCities.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                   </div>
                   <div>
-                      <label className="block text-[9px] text-zinc-500 uppercase mb-1">District</label>
-                      <select className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white outline-none" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)}>
+                      <label className="block text-[9px] text-zinc-500 uppercase mb-1 font-bold">District</label>
+                      <select className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white outline-none" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)}>
                           <option value="ALL">All Districts</option>
                           {uniqueDistricts.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                   </div>
                   <div>
-                      <label className="block text-[9px] text-zinc-500 uppercase mb-1">Service Type</label>
-                      <select className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white outline-none" value={filterService} onChange={e => setFilterService(e.target.value)}>
+                      <label className="block text-[9px] text-zinc-500 uppercase mb-1 font-bold">Service Type</label>
+                      <select className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white outline-none" value={filterService} onChange={e => setFilterService(e.target.value)}>
                           <option value="ALL">All Services</option>
                           {uniqueServiceTypes.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                   </div>
                   <div>
-                      <label className="block text-[9px] text-zinc-500 uppercase mb-1">Health Status</label>
-                      <select className="w-full bg-black border border-white/10 rounded-lg p-2 text-xs text-white outline-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                      <label className="block text-[9px] text-zinc-500 uppercase mb-1 font-bold">Health Status</label>
+                      <select className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white outline-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                           <option value="ALL">All Status</option>
                           <option value="GROWTH">Growth (Green)</option>
                           <option value="STAGNANT">Stagnant (Yellow)</option>
@@ -403,13 +478,16 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                   </div>
               </div>
           )}
+          {selectedIds.length > 0 && showFilters && (
+             <div className="text-[10px] text-rose-500 italic text-center">General filters are disabled while Specific Selection is active.</div>
+          )}
        </div>
 
        {activeTab === 'LIST' && (
-           <div className="glass-panel rounded-xl overflow-hidden border border-white/10">
+           <div className="glass-panel rounded-xl overflow-hidden border border-zinc-800">
                <div className="overflow-x-auto">
                    <table className="w-full text-left border-collapse">
-                       <thead className="bg-zinc-900/50 text-zinc-500 text-[10px] uppercase tracking-wider border-b border-white/10">
+                       <thead className="bg-zinc-900 text-zinc-500 text-[10px] uppercase tracking-wider border-b border-zinc-800">
                            <tr>
                                <th className="px-6 py-4 font-bold">Partner Name</th>
                                <th className="px-6 py-4 font-bold">NIA / Type</th>
@@ -420,27 +498,27 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                                <th className="px-6 py-4 font-bold text-right">Actions</th>
                            </tr>
                        </thead>
-                       <tbody className="divide-y divide-white/5">
+                       <tbody className="divide-y divide-zinc-800/50">
                            {filteredPartners.length === 0 ? (
                                <tr><td colSpan={7} className="text-center py-10 text-zinc-600 text-sm italic">No partners found matching criteria.</td></tr>
                            ) : (
                                filteredPartners.map(p => (
-                                   <tr key={p.id} className="group hover:bg-zinc-900/30 transition-colors">
+                                   <tr key={p.id} className="group hover:bg-zinc-800/40 transition-colors">
                                        <td className="px-6 py-3">
-                                           <div className="font-semibold text-sm text-zinc-200">{p.name}</div>
+                                           <div className="font-bold text-sm text-zinc-200">{p.name}</div>
                                            <div className="text-[10px] text-zinc-500">{p.ownerName}</div>
                                        </td>
                                        <td className="px-6 py-3">
-                                           <div className="font-mono text-xs text-zinc-300">{(p.nia || '')}</div>
-                                           <div className="text-[10px] text-zinc-500">{p.serviceType}</div>
+                                           <div className="font-mono text-xs text-zinc-400">{(p.nia || '')}</div>
+                                           <div className="text-[10px] text-zinc-500 font-bold">{p.serviceType}</div>
                                        </td>
                                        <td className="px-6 py-3">
-                                           <div className="text-xs text-zinc-300">{p.district}</div>
-                                           <div className="text-[10px] text-zinc-500">{p.city}</div>
+                                           <div className="text-xs text-zinc-400 font-medium">{p.district}</div>
+                                           <div className="text-[10px] text-zinc-600">{p.city}</div>
                                        </td>
                                        <td className="px-6 py-3">
                                             {p.coordinates ? (
-                                                <div className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-900/10 px-2 py-0.5 rounded w-fit border border-blue-900/30">
+                                                <div className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded w-fit border border-zinc-800">
                                                     <MapPin size={10} /> Has Coords
                                                 </div>
                                             ) : (
@@ -449,25 +527,25 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                                        </td>
                                        <td className="px-6 py-3">
                                            <div className="text-sm font-bold text-white font-mono">{p.volumeM1}</div>
-                                           <div className="h-0.5 w-12 bg-zinc-800 mt-1 rounded-full overflow-hidden">
-                                               <div className={`h-full ${p.status === 'GROWTH' ? 'bg-emerald-500' : p.status === 'AT_RISK' ? 'bg-red-500' : 'bg-yellow-500'}`} style={{ width: '100%' }}></div>
+                                           <div className="h-1 w-12 bg-zinc-800 mt-1 rounded-full overflow-hidden">
+                                               <div className={`h-full ${p.status === 'GROWTH' ? 'bg-emerald-500' : p.status === 'AT_RISK' ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: '100%' }}></div>
                                            </div>
                                        </td>
                                        <td className="px-6 py-3">
                                            <span className={`text-[10px] font-bold px-2 py-1 rounded border ${
                                                p.status === 'GROWTH' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
-                                               p.status === 'AT_RISK' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
-                                               'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                                               p.status === 'AT_RISK' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 
+                                               'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                            }`}>
                                                {p.status}
                                            </span>
                                        </td>
                                        <td className="px-6 py-3 text-right">
                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                               <button onClick={() => openEdit(p)} className="p-2 bg-zinc-800 hover:bg-white hover:text-black rounded-md text-zinc-400 transition-all" title="Edit">
+                                               <button onClick={() => openEdit(p)} className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-lg transition-all" title="Edit">
                                                    <Edit size={14} />
                                                </button>
-                                               <button onClick={() => handleDelete(p.id)} className="p-2 bg-zinc-800 hover:bg-red-900 hover:text-red-400 rounded-md text-zinc-400 transition-all" title="Delete">
+                                               <button onClick={() => handleDelete(p.id)} className="p-2 bg-zinc-800 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 rounded-lg transition-all" title="Delete">
                                                    <Trash2 size={14} />
                                                </button>
                                                <AIButton onClick={(e) => handleAnalyze(e, p)} loading={analyzing} label="" icon={Sparkles} size="sm" variant="secondary" />
@@ -483,7 +561,7 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
        )}
 
        {activeTab === 'MAP' && (
-           <div className="glass-panel p-1 rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+           <div className="glass-panel p-1 rounded-xl overflow-hidden border border-zinc-700 shadow-2xl">
                <LoadScript googleMapsApiKey="AIzaSyBNuH9od-jt15CJ5skLrhZ7VqUUyrPedLU">
                   <GoogleMap
                     mapContainerStyle={containerStyle}
@@ -516,7 +594,7 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                                             <div className="flex gap-2 mt-2">
                                                 <button 
                                                   onClick={() => window.open(p.googleMapsLink || `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`, '_blank')}
-                                                  className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 flex-1 flex items-center justify-center gap-1 text-[10px]"
+                                                  className="bg-zinc-800 text-white p-1.5 rounded hover:bg-zinc-700 flex-1 flex items-center justify-center gap-1 text-[10px]"
                                                   title="Navigate"
                                                 >
                                                     <Navigation size={12}/> Nav
@@ -542,9 +620,9 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
 
        {/* Edit/Add Modal */}
        {isModalOpen && (
-           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-               <div className="glass-panel w-full max-w-2xl p-6 rounded-xl shadow-2xl border border-white/10 animate-scale-up max-h-[90vh] overflow-y-auto custom-scrollbar">
-                  <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+           <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+               <div className="glass-panel w-full max-w-2xl p-6 rounded-2xl shadow-2xl border border-zinc-700 animate-scale-up max-h-[90vh] overflow-y-auto custom-scrollbar">
+                  <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
                       <h3 className="text-lg font-bold text-white">{editingId ? 'Edit Partner' : 'New Partner'}</h3>
                       <button onClick={() => setIsModalOpen(false)}><X className="text-zinc-500 hover:text-white" size={20}/></button>
                   </div>
@@ -553,86 +631,86 @@ const PartnerManager: React.FC<PartnerManagerProps> = ({ partners, onSavePartner
                       <div className="grid grid-cols-2 gap-4">
                           <div className="col-span-2 md:col-span-1">
                              <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">External Store Name</label>
-                             <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white focus:border-white transition-colors" value={formState.name} onChange={e => setFormState({...formState, name: e.target.value})} />
+                             <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:border-zinc-500 transition-colors" value={formState.name} onChange={e => setFormState({...formState, name: e.target.value})} />
                           </div>
                           <div className="col-span-2 md:col-span-1">
                              <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">NIA</label>
-                             <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white uppercase focus:border-white transition-colors" value={formState.nia} onChange={e => setFormState({...formState, nia: e.target.value})} />
+                             <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white uppercase focus:border-zinc-500 transition-colors" value={formState.nia} onChange={e => setFormState({...formState, nia: e.target.value})} />
                           </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-3">
                           <div>
                             <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">Service Type</label>
-                            <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white" value={formState.serviceType} onChange={e => setFormState({...formState, serviceType: e.target.value})} />
+                            <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white" value={formState.serviceType} onChange={e => setFormState({...formState, serviceType: e.target.value})} />
                           </div>
                           <div>
                             <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">UZ</label>
-                            <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white uppercase" value={formState.uz} onChange={e => setFormState({...formState, uz: e.target.value})} />
+                            <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white uppercase" value={formState.uz} onChange={e => setFormState({...formState, uz: e.target.value})} />
                           </div>
                           <div>
                             <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">Staging Code</label>
-                            <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white uppercase" value={formState.stagingCode} onChange={e => setFormState({...formState, stagingCode: e.target.value})} />
+                            <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white uppercase" value={formState.stagingCode} onChange={e => setFormState({...formState, stagingCode: e.target.value})} />
                           </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">Owner Name</label>
-                            <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white" value={formState.ownerName} onChange={e => setFormState({...formState, ownerName: e.target.value})} />
+                            <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white" value={formState.ownerName} onChange={e => setFormState({...formState, ownerName: e.target.value})} />
                           </div>
                           <div>
                             <label className="text-[10px] uppercase font-bold text-zinc-500 block mb-1">Phone</label>
-                            <input className="w-full bg-black border border-white/10 rounded p-2 text-sm text-white" value={formState.phone} onChange={e => setFormState({...formState, phone: e.target.value})} />
+                            <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white" value={formState.phone} onChange={e => setFormState({...formState, phone: e.target.value})} />
                           </div>
                       </div>
 
-                      <div className="bg-zinc-900/30 p-3 rounded-lg border border-white/5">
+                      <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
                           <label className="text-[10px] uppercase font-bold text-zinc-400 block mb-2">Location Details</label>
                           <div className="grid grid-cols-2 gap-3 mb-3">
                               <div>
-                                <input placeholder="City" className="w-full bg-black border border-white/10 rounded p-2 text-xs text-white" value={formState.city} onChange={e => setFormState({...formState, city: e.target.value})} />
+                                <input placeholder="City" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white" value={formState.city} onChange={e => setFormState({...formState, city: e.target.value})} />
                               </div>
                               <div>
-                                <input placeholder="District" className="w-full bg-black border border-white/10 rounded p-2 text-xs text-white" value={formState.district} onChange={e => setFormState({...formState, district: e.target.value})} />
+                                <input placeholder="District" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white" value={formState.district} onChange={e => setFormState({...formState, district: e.target.value})} />
                               </div>
                           </div>
-                          <input placeholder="Full Address" className="w-full bg-black border border-white/10 rounded p-2 text-xs text-white mb-3" value={formState.address} onChange={e => setFormState({...formState, address: e.target.value})} />
+                          <input placeholder="Full Address" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white mb-3" value={formState.address} onChange={e => setFormState({...formState, address: e.target.value})} />
                           
                           <div className="grid grid-cols-2 gap-3">
                              <div className="relative">
-                                <input className="w-full bg-black border border-white/10 rounded p-2 text-xs text-white" placeholder="Lat, Long (e.g -6.2, 106.8)" value={formState.coordinates} onChange={e => setFormState({...formState, coordinates: e.target.value})} />
-                                <MapPin size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500"/>
+                                <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white" placeholder="Lat, Long (e.g -6.2, 106.8)" value={formState.coordinates} onChange={e => setFormState({...formState, coordinates: e.target.value})} />
+                                <MapPin size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"/>
                              </div>
                              <div className="relative">
-                                <input className="w-full bg-black border border-white/10 rounded p-2 text-xs text-white" placeholder="Google Maps Link (Optional)" value={formState.googleMapsLink} onChange={e => setFormState({...formState, googleMapsLink: e.target.value})} />
-                                <Navigation size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500"/>
+                                <input className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white" placeholder="Google Maps Link (Optional)" value={formState.googleMapsLink} onChange={e => setFormState({...formState, googleMapsLink: e.target.value})} />
+                                <Navigation size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"/>
                              </div>
                           </div>
                       </div>
                       
-                      <div className="bg-zinc-900/50 p-3 rounded border border-white/10">
+                      <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
                           <label className="text-[10px] uppercase font-bold text-zinc-400 block mb-2">Volume History</label>
                           <div className="grid grid-cols-3 gap-3">
                               <div>
-                                  <span className="text-[9px] text-zinc-500">Month -2</span>
-                                  <input type="number" className="w-full bg-black border border-white/10 rounded p-1 text-sm text-white" value={formState.volumeM3} onChange={e => setFormState({...formState, volumeM3: Number(e.target.value)})} />
+                                  <span className="text-[9px] text-zinc-500 font-bold block mb-1">Month -2</span>
+                                  <input type="number" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white" value={formState.volumeM3} onChange={e => setFormState({...formState, volumeM3: Number(e.target.value)})} />
                               </div>
                               <div>
-                                  <span className="text-[9px] text-zinc-500">Month -1</span>
-                                  <input type="number" className="w-full bg-black border border-white/10 rounded p-1 text-sm text-white" value={formState.volumeM2} onChange={e => setFormState({...formState, volumeM2: Number(e.target.value)})} />
+                                  <span className="text-[9px] text-zinc-500 font-bold block mb-1">Month -1</span>
+                                  <input type="number" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white" value={formState.volumeM2} onChange={e => setFormState({...formState, volumeM2: Number(e.target.value)})} />
                               </div>
                               <div>
-                                  <span className="text-[9px] text-zinc-500">Current</span>
-                                  <input type="number" className="w-full bg-black border border-white/10 rounded p-1 text-sm text-white" value={formState.volumeM1} onChange={e => setFormState({...formState, volumeM1: Number(e.target.value)})} />
+                                  <span className="text-[9px] text-zinc-500 font-bold block mb-1">Current</span>
+                                  <input type="number" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white" value={formState.volumeM1} onChange={e => setFormState({...formState, volumeM1: Number(e.target.value)})} />
                               </div>
                           </div>
                       </div>
 
                       <div className="flex gap-3 pt-4">
                           <div className="flex-1 flex gap-3">
-                              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-zinc-900 text-zinc-400 rounded-lg text-xs font-bold border border-zinc-800 hover:bg-zinc-800">Cancel</button>
-                              <button onClick={handleSave} className="flex-1 py-3 bg-white text-black rounded-lg text-xs font-bold hover:bg-zinc-200 shadow-glow transition-all">Save Partner</button>
+                              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-zinc-900 text-zinc-400 rounded-xl text-xs font-bold border border-zinc-800 hover:bg-zinc-800 transition-colors">Cancel</button>
+                              <button onClick={handleSave} className="flex-1 py-3 bg-white text-black rounded-xl text-xs font-bold hover:bg-zinc-200 shadow-glow transition-all">Save Partner</button>
                           </div>
                       </div>
                   </div>
